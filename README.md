@@ -1,36 +1,162 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MatchUp - Çöpçatanlık Başvuru Sitesi
 
-## Getting Started
+Modern, şık çöpçatanlık başvuru formu ve admin paneli.
 
-First, run the development server:
+![MatchUp Logo](./public/logo.png)
+
+## 🚀 Hızlı Kurulum
+
+### 1. Supabase Kurulumu
+
+1. [supabase.com](https://supabase.com) adresinden ücretsiz hesap aç
+2. Yeni proje oluştur (herhangi bir isim ve şifre ver)
+3. Proje açıldıktan sonra **SQL Editor**'a git
+4. Aşağıdaki SQL'i çalıştır:
+
+```sql
+-- Applications tablosu
+CREATE TABLE applications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  age INTEGER NOT NULL,
+  weight INTEGER NOT NULL,
+  sexual_preference TEXT NOT NULL,
+  description TEXT,
+  photo_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS (Row Level Security) aç
+ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
+
+-- Herkes INSERT yapabilsin (başvuru göndermek için)
+CREATE POLICY "Anyone can insert applications" ON applications
+FOR INSERT TO anon
+WITH CHECK (true);
+
+-- Herkes SELECT yapabilsin (admin paneli için, şifre kontrolü backend'de)
+CREATE POLICY "Anyone can view applications" ON applications
+FOR SELECT TO anon
+USING (true);
+
+-- Herkes DELETE yapabilsin (admin silmesi için, şifre kontrolü backend'de)
+CREATE POLICY "Anyone can delete applications" ON applications
+FOR DELETE TO anon
+USING (true);
+```
+
+5. **Storage** bölümüne git
+6. **New bucket** → İsim: `photos` → **Public bucket** olarak işaretle → Create
+7. Bucket'a tıkla → **Policies** → **New Policy** → "Give users access to their own folder"
+   - Veya şu policy'i ekle:
+
+```sql
+-- Storage için policy
+CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'photos');
+CREATE POLICY "Anyone can upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'photos');
+CREATE POLICY "Anyone can delete" ON storage.objects FOR DELETE USING (bucket_id = 'photos');
+```
+
+8. **Settings** → **API** bölümünden:
+   - `Project URL` → kopyala
+   - `anon public` key → kopyala
+
+### 2. Proje Kurulumu
+
+```bash
+# Bağımlılıkları yükle
+npm install
+
+# .env.local dosyasını düzenle
+# Supabase bilgilerini gir
+```
+
+`.env.local` dosyası:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ADMIN_PASSWORD=matchup2024
+```
+
+### 3. Geliştirme
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Site: http://localhost:3000
+Admin: http://localhost:3000/admin
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🌐 Vercel'e Deploy
 
-## Learn More
+### Yöntem 1: GitHub ile (Önerilen)
 
-To learn more about Next.js, take a look at the following resources:
+1. Projeyi GitHub'a push et
+2. [vercel.com](https://vercel.com) → "Add New Project"
+3. GitHub reposunu seç
+4. **Environment Variables** bölümüne:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `ADMIN_PASSWORD`
+5. Deploy!
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Yöntem 2: Vercel CLI
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
 
-## Deploy on Vercel
+Deploy sırasında environment variable'ları eklemen istenecek.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📁 Proje Yapısı
+
+```
+matchup/
+├── src/
+│   ├── app/
+│   │   ├── page.tsx          # Ana sayfa (başvuru formu)
+│   │   ├── admin/
+│   │   │   └── page.tsx      # Admin paneli
+│   │   └── api/
+│   │       ├── submit/       # Başvuru gönderme
+│   │       ├── applications/ # Başvuruları getir
+│   │       └── delete/       # Başvuru sil
+│   └── lib/
+│       └── supabase.ts       # Supabase client
+├── public/
+│   └── logo.png              # Logo
+└── .env.local                # Environment variables
+```
+
+---
+
+## 🔐 Admin Paneli
+
+- URL: `/admin`
+- Varsayılan şifre: `matchup2024`
+- `.env.local` dosyasından `ADMIN_PASSWORD` ile değiştirebilirsin
+
+---
+
+## 💡 Özellikler
+
+- ✅ Modern, responsive tasarım
+- ✅ Fotoğraf yükleme
+- ✅ Admin paneli (şifre korumalı)
+- ✅ Başvuru listeleme & silme
+- ✅ Fotoğraf büyütme (modal)
+- ✅ Vercel uyumlu
+- ✅ Supabase ücretsiz tier
+
+---
+
+## 📞 Destek
+
+Herhangi bir sorun olursa issue aç!
