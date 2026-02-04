@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MatchUp - Çöpçatanlık Başvurusu",
+  title: "MatchUp",
   description: "MatchUp ile hayatının aşkını bul! Hemen başvur, eşleş ve tanış.",
   keywords: "çöpçatanlık, eşleşme, tanışma, aşk, matchup",
+  icons: {
+    icon: "/favicon.svg",
+  },
   openGraph: {
-    title: "MatchUp - Çöpçatanlık Başvurusu",
+    title: "MatchUp",
     description: "MatchUp ile hayatının aşkını bul!",
     type: "website",
   },
