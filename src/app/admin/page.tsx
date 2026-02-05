@@ -2,19 +2,30 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
-import { Application } from '@/lib/supabase';
+import { Application, Match } from '@/lib/supabase';
+
+interface MatchWithApps extends Match {
+    application_1: Application;
+    application_2: Application;
+}
 
 export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [applications, setApplications] = useState<Application[]>([]);
+    const [matches, setMatches] = useState<MatchWithApps[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'applications' | 'matches'>('applications');
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
     const [filterPreference, setFilterPreference] = useState('');
+
+    // Matching state
+    const [selectedForMatch, setSelectedForMatch] = useState<string[]>([]);
+    const [isCreatingMatch, setIsCreatingMatch] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,6 +44,7 @@ export default function AdminPage() {
                 setApplications(data);
                 setIsAuthenticated(true);
                 localStorage.setItem('adminPassword', password);
+                fetchMatches(password);
             } else {
                 setError('Yanlış şifre!');
             }
@@ -63,6 +75,23 @@ export default function AdminPage() {
         }
     };
 
+    const fetchMatches = async (savedPassword?: string) => {
+        try {
+            const response = await fetch('/api/matches', {
+                headers: {
+                    'Authorization': savedPassword || password
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setMatches(data);
+            }
+        } catch {
+            console.error('Fetch matches error');
+        }
+    };
+
     const handleDelete = async (id: string) => {
         if (!confirm('Bu başvuruyu silmek istediğinize emin misiniz?')) return;
 
@@ -84,10 +113,90 @@ export default function AdminPage() {
         }
     };
 
+    const handleDeleteMatch = async (id: string) => {
+        if (!confirm('Bu eşleşmeyi silmek istediğinize emin misiniz?')) return;
+
+        try {
+            const response = await fetch(`/api/matches?id=${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': password || localStorage.getItem('adminPassword') || ''
+                }
+            });
+
+            if (response.ok) {
+                setMatches(matches.filter(m => m.id !== id));
+            }
+        } catch {
+            console.error('Delete match error');
+        }
+    };
+
+    const handleCreateMatch = async () => {
+        if (selectedForMatch.length !== 2) {
+            alert('Lütfen tam olarak 2 kişi seçin!');
+            return;
+        }
+
+        setIsCreatingMatch(true);
+        try {
+            const response = await fetch('/api/matches', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': password || localStorage.getItem('adminPassword') || ''
+                },
+                body: JSON.stringify({
+                    application1Id: selectedForMatch[0],
+                    application2Id: selectedForMatch[1]
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert('Eşleştirme başarılı!');
+                setSelectedForMatch([]);
+                fetchMatches();
+            } else {
+                alert(result.error || 'Eşleştirme hatası!');
+            }
+        } catch {
+            alert('Bağlantı hatası!');
+        } finally {
+            setIsCreatingMatch(false);
+        }
+    };
+
+    const toggleSelectForMatch = (id: string) => {
+        if (selectedForMatch.includes(id)) {
+            setSelectedForMatch(selectedForMatch.filter(x => x !== id));
+        } else if (selectedForMatch.length < 2) {
+            setSelectedForMatch([...selectedForMatch, id]);
+        } else {
+            // Replace the first selection
+            setSelectedForMatch([selectedForMatch[1], id]);
+        }
+    };
+
+    // Get matches for a specific application
+    const getMatchesForApp = (appId: string): Application[] => {
+        const matchedApps: Application[] = [];
+        matches.forEach(m => {
+            if (m.application_1_id === appId && m.application_2) {
+                matchedApps.push(m.application_2);
+            } else if (m.application_2_id === appId && m.application_1) {
+                matchedApps.push(m.application_1);
+            }
+        });
+        return matchedApps;
+    };
+
     const handleLogout = () => {
         setIsAuthenticated(false);
         setPassword('');
         setApplications([]);
+        setMatches([]);
         localStorage.removeItem('adminPassword');
     };
 
@@ -97,6 +206,7 @@ export default function AdminPage() {
             setPassword(savedPassword);
             setIsAuthenticated(true);
             fetchApplications(savedPassword);
+            fetchMatches(savedPassword);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -212,7 +322,7 @@ export default function AdminPage() {
                     </div>
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => fetchApplications()}
+                            onClick={() => { fetchApplications(); fetchMatches(); }}
                             className="btn-secondary"
                         >
                             <i className="fa-solid fa-rotate-right mr-2"></i>Yenile
@@ -226,158 +336,345 @@ export default function AdminPage() {
                     </div>
                 </div>
 
-                {/* Stats */}
-                <div className="card mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-lg font-semibold">Toplam Başvuru</h2>
-                            <p className="text-[var(--matchup-text-muted)]">
-                                {filterGender || filterPreference
-                                    ? `Filtrelenen: ${filteredApplications.length} / ${applications.length}`
-                                    : 'Sistemdeki tüm başvurular'}
-                            </p>
-                        </div>
-                        <div className="text-4xl font-bold text-[var(--matchup-primary)]">
-                            {filteredApplications.length}
-                        </div>
-                    </div>
+                {/* Tabs */}
+                <div className="flex gap-4 mb-6 animate-fade-in">
+                    <button
+                        onClick={() => setActiveTab('applications')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'applications'
+                                ? 'bg-[var(--matchup-primary)] text-white'
+                                : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-users mr-2"></i>Başvurular ({applications.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('matches')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'matches'
+                                ? 'bg-[var(--matchup-primary)] text-white'
+                                : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-heart mr-2"></i>Eşleşmeler ({matches.length})
+                    </button>
                 </div>
 
-                {/* Filters */}
-                <div className="card mb-8 animate-fade-in" style={{ animationDelay: '0.15s' }}>
-                    <h3 className="font-semibold mb-4"><i className="fa-solid fa-filter mr-2"></i>Filtrele</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                            <label className="form-label text-sm">Cinsiyet</label>
-                            <select
-                                className="form-input"
-                                value={filterGender}
-                                onChange={(e) => setFilterGender(e.target.value)}
-                            >
-                                <option value="">Tümü</option>
-                                <option value="erkek">Erkek</option>
-                                <option value="kadin">Kadın</option>
-                                <option value="diger">Diğer</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="form-label text-sm">Cinsel Tercih</label>
-                            <select
-                                className="form-input"
-                                value={filterPreference}
-                                onChange={(e) => setFilterPreference(e.target.value)}
-                            >
-                                <option value="">Tümü</option>
-                                <option value="heteroseksuel">Heteroseksüel</option>
-                                <option value="homoseksuel">Homoseksüel</option>
-                                <option value="biseksuel">Biseksüel</option>
-                                <option value="diger">Diğer</option>
-                            </select>
-                        </div>
-                        <div className="col-span-2 flex items-end">
-                            <button
-                                onClick={() => { setFilterGender(''); setFilterPreference(''); }}
-                                className="btn-secondary w-full"
-                            >
-                                <i className="fa-solid fa-xmark mr-2"></i>Filtreleri Temizle
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Applications List */}
-                {isLoading ? (
-                    <div className="text-center py-20">
-                        <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto"></div>
-                        <p className="mt-4 text-[var(--matchup-text-muted)]">Yükleniyor...</p>
-                    </div>
-                ) : filteredApplications.length === 0 ? (
-                    <div className="card text-center py-16 animate-fade-in">
-                        <p className="text-[var(--matchup-text-muted)] text-lg">
-                            {applications.length === 0 ? 'Henüz başvuru yok' : 'Filtrelere uygun başvuru bulunamadı'}
-                        </p>
-                    </div>
-                ) : (
-                    <div className="grid gap-6">
-                        {filteredApplications.map((app, index) => (
-                            <div
-                                key={app.id}
-                                className="card animate-fade-in"
-                                style={{ animationDelay: `${0.05 * index}s` }}
-                            >
-                                <div className="flex flex-col md:flex-row gap-6">
-                                    {/* Photo */}
-                                    <div
-                                        className="w-32 h-32 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer bg-[var(--matchup-bg-input)]"
-                                        onClick={() => app.photo_url && setSelectedImage(app.photo_url)}
-                                    >
-                                        {app.photo_url ? (
-                                            <img
-                                                src={app.photo_url}
-                                                alt={`${app.first_name} ${app.last_name}`}
-                                                className="w-full h-full object-cover hover:scale-110 transition-transform"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-[var(--matchup-text-muted)]">
-                                                Foto Yok
-                                            </div>
-                                        )}
+                {activeTab === 'applications' && (
+                    <>
+                        {/* Matching Banner */}
+                        {selectedForMatch.length > 0 && (
+                            <div className="card mb-6 bg-gradient-to-r from-[var(--matchup-primary)] to-pink-600 animate-fade-in">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="font-bold text-white">
+                                            {selectedForMatch.length}/2 Kişi Seçildi
+                                        </h3>
+                                        <p className="text-white/80 text-sm">
+                                            Eşleştirmek için 2 kişi seçin
+                                        </p>
                                     </div>
-
-                                    {/* Info */}
-                                    <div className="flex-1">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div>
-                                                <h3 className="text-xl font-bold">
-                                                    {app.first_name} {app.last_name}
-                                                </h3>
-                                                <p className="text-[var(--matchup-text-muted)] text-sm">
-                                                    {formatDate(app.created_at)}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleDelete(app.id)}
-                                                className="btn-danger"
-                                            >
-                                                <i className="fa-solid fa-trash mr-2"></i>Sil
-                                            </button>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
-                                            <div>
-                                                <span className="text-[var(--matchup-text-muted)] text-sm">Yaş</span>
-                                                <p className="font-semibold">{app.age}</p>
-                                            </div>
-                                            <div>
-                                                <span className="text-[var(--matchup-text-muted)] text-sm">Kilo</span>
-                                                <p className="font-semibold">{app.weight} kg</p>
-                                            </div>
-                                            <div>
-                                                <span className="text-[var(--matchup-text-muted)] text-sm">Cinsiyet</span>
-                                                <p className="font-semibold">{getGenderLabel(app.gender)}</p>
-                                            </div>
-                                            <div>
-                                                <span className="text-[var(--matchup-text-muted)] text-sm">Tercih</span>
-                                                <p className="font-semibold">{getSexualPreferenceLabel(app.sexual_preference)}</p>
-                                            </div>
-                                            <div>
-                                                <span className="text-[var(--matchup-text-muted)] text-sm">Telefon</span>
-                                                <p className="font-semibold">{app.phone || '-'}</p>
-                                            </div>
-                                            <div>
-                                                <span className="text-[var(--matchup-text-muted)] text-sm">Facebrowser</span>
-                                                <p className="font-semibold">{app.facebrowser || '-'}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-[var(--matchup-bg-input)] rounded-xl p-4">
-                                            <span className="text-[var(--matchup-text-muted)] text-sm block mb-2">Açıklama</span>
-                                            <p className="text-sm leading-relaxed">{app.description}</p>
-                                        </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setSelectedForMatch([])}
+                                            className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white transition-all"
+                                        >
+                                            Temizle
+                                        </button>
+                                        <button
+                                            onClick={handleCreateMatch}
+                                            disabled={selectedForMatch.length !== 2 || isCreatingMatch}
+                                            className="px-4 py-2 bg-white text-[var(--matchup-primary)] rounded-lg font-semibold hover:bg-white/90 transition-all disabled:opacity-50"
+                                        >
+                                            {isCreatingMatch ? 'Eşleştiriliyor...' : 'Eşleştir'}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        )}
+
+                        {/* Stats */}
+                        <div className="card mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-lg font-semibold">Toplam Başvuru</h2>
+                                    <p className="text-[var(--matchup-text-muted)]">
+                                        {filterGender || filterPreference
+                                            ? `Filtrelenen: ${filteredApplications.length} / ${applications.length}`
+                                            : 'Sistemdeki tüm başvurular'}
+                                    </p>
+                                </div>
+                                <div className="text-4xl font-bold text-[var(--matchup-primary)]">
+                                    {filteredApplications.length}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Filters */}
+                        <div className="card mb-8 animate-fade-in" style={{ animationDelay: '0.15s' }}>
+                            <h3 className="font-semibold mb-4"><i className="fa-solid fa-filter mr-2"></i>Filtrele</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label className="form-label text-sm">Cinsiyet</label>
+                                    <select
+                                        className="form-input"
+                                        value={filterGender}
+                                        onChange={(e) => setFilterGender(e.target.value)}
+                                    >
+                                        <option value="">Tümü</option>
+                                        <option value="erkek">Erkek</option>
+                                        <option value="kadin">Kadın</option>
+                                        <option value="diger">Diğer</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="form-label text-sm">Cinsel Tercih</label>
+                                    <select
+                                        className="form-input"
+                                        value={filterPreference}
+                                        onChange={(e) => setFilterPreference(e.target.value)}
+                                    >
+                                        <option value="">Tümü</option>
+                                        <option value="heteroseksuel">Heteroseksüel</option>
+                                        <option value="homoseksuel">Homoseksüel</option>
+                                        <option value="biseksuel">Biseksüel</option>
+                                        <option value="diger">Diğer</option>
+                                    </select>
+                                </div>
+                                <div className="col-span-2 flex items-end">
+                                    <button
+                                        onClick={() => { setFilterGender(''); setFilterPreference(''); }}
+                                        className="btn-secondary w-full"
+                                    >
+                                        <i className="fa-solid fa-xmark mr-2"></i>Filtreleri Temizle
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Applications List */}
+                        {isLoading ? (
+                            <div className="text-center py-20">
+                                <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto"></div>
+                                <p className="mt-4 text-[var(--matchup-text-muted)]">Yükleniyor...</p>
+                            </div>
+                        ) : filteredApplications.length === 0 ? (
+                            <div className="card text-center py-16 animate-fade-in">
+                                <p className="text-[var(--matchup-text-muted)] text-lg">
+                                    {applications.length === 0 ? 'Henüz başvuru yok' : 'Filtrelere uygun başvuru bulunamadı'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-6">
+                                {filteredApplications.map((app, index) => {
+                                    const isSelected = selectedForMatch.includes(app.id);
+                                    const appMatches = getMatchesForApp(app.id);
+
+                                    return (
+                                        <div
+                                            key={app.id}
+                                            className={`card animate-fade-in cursor-pointer transition-all ${isSelected ? 'ring-2 ring-[var(--matchup-primary)]' : ''
+                                                }`}
+                                            style={{ animationDelay: `${0.05 * index}s` }}
+                                            onClick={() => toggleSelectForMatch(app.id)}
+                                        >
+                                            <div className="flex flex-col md:flex-row gap-6">
+                                                {/* Selection Checkbox */}
+                                                <div className="flex items-center">
+                                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
+                                                            ? 'bg-[var(--matchup-primary)] border-[var(--matchup-primary)]'
+                                                            : 'border-[var(--matchup-text-muted)]'
+                                                        }`}>
+                                                        {isSelected && <i className="fa-solid fa-check text-white text-xs"></i>}
+                                                    </div>
+                                                </div>
+
+                                                {/* Photo */}
+                                                <div
+                                                    className="w-32 h-32 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer bg-[var(--matchup-bg-input)]"
+                                                    onClick={(e) => { e.stopPropagation(); app.photo_url && setSelectedImage(app.photo_url); }}
+                                                >
+                                                    {app.photo_url ? (
+                                                        <img
+                                                            src={app.photo_url}
+                                                            alt={`${app.first_name} ${app.last_name}`}
+                                                            className="w-full h-full object-cover hover:scale-110 transition-transform"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-[var(--matchup-text-muted)]">
+                                                            Foto Yok
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Info */}
+                                                <div className="flex-1">
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div>
+                                                            <h3 className="text-xl font-bold">
+                                                                {app.first_name} {app.last_name}
+                                                            </h3>
+                                                            {app.character_name && (
+                                                                <p className="text-[var(--matchup-primary)] text-sm">
+                                                                    {app.character_name}
+                                                                </p>
+                                                            )}
+                                                            <p className="text-[var(--matchup-text-muted)] text-sm">
+                                                                {formatDate(app.created_at)}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDelete(app.id); }}
+                                                            className="btn-danger"
+                                                        >
+                                                            <i className="fa-solid fa-trash mr-2"></i>Sil
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+                                                        <div>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Yaş</span>
+                                                            <p className="font-semibold">{app.age}</p>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Kilo</span>
+                                                            <p className="font-semibold">{app.weight} kg</p>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Cinsiyet</span>
+                                                            <p className="font-semibold">{getGenderLabel(app.gender)}</p>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Tercih</span>
+                                                            <p className="font-semibold">{getSexualPreferenceLabel(app.sexual_preference)}</p>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Telefon</span>
+                                                            <p className="font-semibold">{app.phone || '-'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Facebrowser</span>
+                                                            <p className="font-semibold">{app.facebrowser || '-'}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="bg-[var(--matchup-bg-input)] rounded-xl p-4">
+                                                        <span className="text-[var(--matchup-text-muted)] text-sm block mb-2">Açıklama</span>
+                                                        <p className="text-sm leading-relaxed">{app.description}</p>
+                                                    </div>
+
+                                                    {/* Current Matches for this person */}
+                                                    {appMatches.length > 0 && (
+                                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm block mb-2">
+                                                                <i className="fa-solid fa-heart mr-1"></i>
+                                                                Eşleşmeleri ({appMatches.length})
+                                                            </span>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {appMatches.map(match => (
+                                                                    <span
+                                                                        key={match.id}
+                                                                        className="px-3 py-1 bg-[var(--matchup-primary)]/20 text-[var(--matchup-primary)] rounded-full text-sm"
+                                                                    >
+                                                                        {match.first_name} {match.last_name}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {activeTab === 'matches' && (
+                    <div className="space-y-6">
+                        {matches.length === 0 ? (
+                            <div className="card text-center py-16 animate-fade-in">
+                                <i className="fa-solid fa-heart-crack text-6xl text-[var(--matchup-text-muted)] mb-4"></i>
+                                <p className="text-[var(--matchup-text-muted)] text-lg">
+                                    Henüz eşleşme oluşturulmadı
+                                </p>
+                            </div>
+                        ) : (
+                            matches.map((match, index) => (
+                                <div
+                                    key={match.id}
+                                    className="card animate-fade-in"
+                                    style={{ animationDelay: `${0.05 * index}s` }}
+                                >
+                                    <div className="flex items-center justify-between mb-4">
+                                        <span className="text-[var(--matchup-text-muted)] text-sm">
+                                            {formatDate(match.created_at)}
+                                        </span>
+                                        <button
+                                            onClick={() => handleDeleteMatch(match.id)}
+                                            className="btn-danger text-sm"
+                                        >
+                                            <i className="fa-solid fa-trash mr-2"></i>Sil
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-4">
+                                        {/* Person 1 */}
+                                        <div className="flex-1 text-center">
+                                            {match.application_1?.photo_url && (
+                                                <div
+                                                    className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-2 cursor-pointer"
+                                                    onClick={() => setSelectedImage(match.application_1.photo_url)}
+                                                >
+                                                    <img
+                                                        src={match.application_1.photo_url}
+                                                        alt=""
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                            )}
+                                            <p className="font-semibold">
+                                                {match.application_1?.first_name} {match.application_1?.last_name}
+                                            </p>
+                                            {match.application_1?.character_name && (
+                                                <p className="text-[var(--matchup-primary)] text-sm">
+                                                    {match.application_1.character_name}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Heart Icon */}
+                                        <div className="text-4xl text-[var(--matchup-primary)]">
+                                            <i className="fa-solid fa-heart"></i>
+                                        </div>
+
+                                        {/* Person 2 */}
+                                        <div className="flex-1 text-center">
+                                            {match.application_2?.photo_url && (
+                                                <div
+                                                    className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-2 cursor-pointer"
+                                                    onClick={() => setSelectedImage(match.application_2.photo_url)}
+                                                >
+                                                    <img
+                                                        src={match.application_2.photo_url}
+                                                        alt=""
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                            )}
+                                            <p className="font-semibold">
+                                                {match.application_2?.first_name} {match.application_2?.last_name}
+                                            </p>
+                                            {match.application_2?.character_name && (
+                                                <p className="text-[var(--matchup-primary)] text-sm">
+                                                    {match.application_2.character_name}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 )}
             </div>

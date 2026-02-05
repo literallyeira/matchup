@@ -18,4 +18,26 @@ export interface Application {
   description: string
   photo_url: string
   created_at: string
+  // New fields for GTAW integration
+  gtaw_user_id?: number
+  character_id?: number
+  character_name?: string
+}
+
+export interface User {
+  id: string
+  gtaw_id: number
+  username: string
+  created_at: string
+}
+
+export interface Match {
+  id: string
+  application_1_id: string
+  application_2_id: string
+  created_at: string
+  created_by?: string
+  // Joined data
+  application_1?: Application
+  application_2?: Application
 }
