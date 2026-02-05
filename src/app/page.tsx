@@ -32,6 +32,17 @@ interface Match {
   matchedWith: MatchedPerson;
 }
 
+// Test mode mock data
+const TEST_MODE_USER = {
+  gtawId: 99999,
+  username: 'TestUser',
+  characters: [
+    { id: 1001, memberid: 99999, firstname: 'John', lastname: 'Doe' },
+    { id: 1002, memberid: 99999, firstname: 'Jane', lastname: 'Smith' },
+    { id: 1003, memberid: 99999, firstname: 'Alex', lastname: 'Johnson' },
+  ]
+};
+
 export default function Home() {
   const { data: session, status } = useSession();
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -39,6 +50,10 @@ export default function Home() {
   const [hasApplication, setHasApplication] = useState(false);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [showForm, setShowForm] = useState(false);
+
+  // Test mode state
+  const [testMode, setTestMode] = useState(false);
+  const [testModeLoggedIn, setTestModeLoggedIn] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -55,6 +70,24 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Check for test mode from localStorage
+  useEffect(() => {
+    const savedTestMode = localStorage.getItem('matchup_test_mode');
+    if (savedTestMode === 'true') {
+      setTestMode(true);
+    }
+  }, []);
+
+  // Get effective session (real or test mode)
+  const effectiveSession = testMode && testModeLoggedIn ? {
+    user: {
+      ...TEST_MODE_USER,
+      name: TEST_MODE_USER.username
+    }
+  } : session;
+
+  const effectiveStatus = testMode ? (testModeLoggedIn ? 'authenticated' : 'unauthenticated') : status;
+
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -62,16 +95,28 @@ export default function Home() {
 
   // Fetch matches when character is selected
   useEffect(() => {
-    if (selectedCharacter && session?.user?.gtawId) {
+    const gtawId = testMode ? TEST_MODE_USER.gtawId : session?.user?.gtawId;
+    if (selectedCharacter && gtawId) {
       fetchMatches();
     }
-  }, [selectedCharacter, session?.user?.gtawId]);
+  }, [selectedCharacter, session?.user?.gtawId, testMode]);
 
   const fetchMatches = async () => {
     if (!selectedCharacter) return;
 
     setIsLoadingMatches(true);
     try {
+      // In test mode, simulate API response
+      if (testMode) {
+        // Simulate delay
+        await new Promise(r => setTimeout(r, 500));
+        setMatches([]);
+        setHasApplication(false);
+        setShowForm(true);
+        setIsLoadingMatches(false);
+        return;
+      }
+
       const response = await fetch(`/api/my-matches?characterId=${selectedCharacter.id}`);
       const data = await response.json();
 
@@ -101,6 +146,28 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
+      // In test mode, simulate success
+      if (testMode) {
+        await new Promise(r => setTimeout(r, 1000));
+        showToast('(TEST) Başvurunuz başarıyla gönderildi!', 'success');
+        setFormData({
+          firstName: '',
+          lastName: '',
+          age: '',
+          weight: '',
+          gender: '',
+          sexualPreference: '',
+          phone: '',
+          facebrowser: '',
+          description: '',
+          photoUrl: ''
+        });
+        setHasApplication(true);
+        setShowForm(false);
+        setIsSubmitting(false);
+        return;
+      }
+
       const response = await fetch('/api/submit', {
         method: 'POST',
         headers: {
@@ -141,6 +208,17 @@ export default function Home() {
     }
   };
 
+  const handleTestModeLogin = () => {
+    setTestModeLoggedIn(true);
+  };
+
+  const handleTestModeLogout = () => {
+    setTestModeLoggedIn(false);
+    setSelectedCharacter(null);
+    setMatches([]);
+    setHasApplication(false);
+  };
+
   const getGenderLabel = (value: string) => {
     const labels: Record<string, string> = {
       erkek: 'Erkek',
@@ -161,7 +239,7 @@ export default function Home() {
   };
 
   // Loading state
-  if (status === 'loading') {
+  if (effectiveStatus === 'loading') {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -173,7 +251,7 @@ export default function Home() {
   }
 
   // Not logged in - show login button
-  if (!session) {
+  if (!effectiveSession) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="card max-w-md w-full text-center animate-fade-in">
@@ -190,17 +268,37 @@ export default function Home() {
             Hayatının aşkını bulmaya bir adım kaldı!
           </p>
 
-          <button
-            onClick={() => signIn('gtaw')}
-            className="btn-primary flex items-center justify-center gap-3"
-          >
-            <i className="fa-solid fa-right-to-bracket"></i>
-            GTA World ile Giriş Yap
-          </button>
+          {testMode ? (
+            <button
+              onClick={handleTestModeLogin}
+              className="btn-primary flex items-center justify-center gap-3"
+            >
+              <i className="fa-solid fa-flask"></i>
+              Test Kullanıcısı Olarak Giriş Yap
+            </button>
+          ) : (
+            <button
+              onClick={() => signIn('gtaw')}
+              className="btn-primary flex items-center justify-center gap-3"
+            >
+              <i className="fa-solid fa-right-to-bracket"></i>
+              GTA World ile Giriş Yap
+            </button>
+          )}
 
           <p className="text-[var(--matchup-text-muted)] text-sm mt-6">
             Giriş yaparak gizlilik politikamızı kabul etmiş olursunuz.
           </p>
+
+          {/* Test Mode Indicator */}
+          {testMode && (
+            <div className="mt-6 p-3 bg-yellow-500/20 rounded-xl border border-yellow-500/50">
+              <p className="text-yellow-400 text-sm">
+                <i className="fa-solid fa-flask mr-2"></i>
+                Test Modu Aktif
+              </p>
+            </div>
+          )}
         </div>
       </main>
     );
@@ -208,7 +306,7 @@ export default function Home() {
 
   // Logged in but no character selected
   if (!selectedCharacter) {
-    const characters = session.user.characters || [];
+    const characters = testMode ? TEST_MODE_USER.characters : (effectiveSession.user.characters || []);
 
     return (
       <main className="min-h-screen py-12 px-4">
@@ -224,10 +322,11 @@ export default function Home() {
             />
             <div className="flex items-center gap-3">
               <span className="text-[var(--matchup-text-muted)] text-sm">
-                {session.user.username}
+                {testMode ? TEST_MODE_USER.username : effectiveSession.user.username}
+                {testMode && <span className="text-yellow-400 ml-1">(TEST)</span>}
               </span>
               <button
-                onClick={() => signOut()}
+                onClick={() => testMode ? handleTestModeLogout() : signOut()}
                 className="btn-secondary text-sm"
               >
                 Çıkış
@@ -263,6 +362,16 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {/* Test Mode Indicator */}
+          {testMode && (
+            <div className="mt-6 p-3 bg-yellow-500/20 rounded-xl border border-yellow-500/50 text-center">
+              <p className="text-yellow-400 text-sm">
+                <i className="fa-solid fa-flask mr-2"></i>
+                Test Modu - Veriler kaydedilmeyecek
+              </p>
+            </div>
+          )}
         </div>
       </main>
     );
@@ -284,6 +393,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <span className="text-[var(--matchup-text-muted)] text-sm">
               {selectedCharacter.firstname} {selectedCharacter.lastname}
+              {testMode && <span className="text-yellow-400 ml-1">(TEST)</span>}
             </span>
             <button
               onClick={() => setSelectedCharacter(null)}
@@ -293,6 +403,16 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* Test Mode Banner */}
+        {testMode && (
+          <div className="mb-6 p-3 bg-yellow-500/20 rounded-xl border border-yellow-500/50 text-center animate-fade-in">
+            <p className="text-yellow-400 text-sm">
+              <i className="fa-solid fa-flask mr-2"></i>
+              Test Modu Aktif - İşlemler simüle edilecek
+            </p>
+          </div>
+        )}
 
         {isLoadingMatches ? (
           <div className="text-center py-20">

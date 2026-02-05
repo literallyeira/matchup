@@ -27,6 +27,21 @@ export default function AdminPage() {
     const [selectedForMatch, setSelectedForMatch] = useState<string[]>([]);
     const [isCreatingMatch, setIsCreatingMatch] = useState(false);
 
+    // Test mode state
+    const [testMode, setTestMode] = useState(false);
+
+    // Load test mode from localStorage
+    useEffect(() => {
+        const savedTestMode = localStorage.getItem('matchup_test_mode');
+        setTestMode(savedTestMode === 'true');
+    }, []);
+
+    const toggleTestMode = () => {
+        const newValue = !testMode;
+        setTestMode(newValue);
+        localStorage.setItem('matchup_test_mode', newValue.toString());
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -321,6 +336,17 @@ export default function AdminPage() {
                         <span className="text-[var(--matchup-text-muted)]">Admin Paneli</span>
                     </div>
                     <div className="flex items-center gap-4">
+                        {/* Test Mode Toggle */}
+                        <button
+                            onClick={toggleTestMode}
+                            className={`px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2 ${testMode
+                                    ? 'bg-yellow-500 text-black'
+                                    : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                                }`}
+                        >
+                            <i className="fa-solid fa-flask"></i>
+                            {testMode ? 'Test Modu: Açık' : 'Test Modu: Kapalı'}
+                        </button>
                         <button
                             onClick={() => { fetchApplications(); fetchMatches(); }}
                             className="btn-secondary"
@@ -341,8 +367,8 @@ export default function AdminPage() {
                     <button
                         onClick={() => setActiveTab('applications')}
                         className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'applications'
-                                ? 'bg-[var(--matchup-primary)] text-white'
-                                : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
                             }`}
                     >
                         <i className="fa-solid fa-users mr-2"></i>Başvurular ({applications.length})
@@ -350,8 +376,8 @@ export default function AdminPage() {
                     <button
                         onClick={() => setActiveTab('matches')}
                         className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'matches'
-                                ? 'bg-[var(--matchup-primary)] text-white'
-                                : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
                             }`}
                     >
                         <i className="fa-solid fa-heart mr-2"></i>Eşleşmeler ({matches.length})
@@ -480,8 +506,8 @@ export default function AdminPage() {
                                                 {/* Selection Checkbox */}
                                                 <div className="flex items-center">
                                                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
-                                                            ? 'bg-[var(--matchup-primary)] border-[var(--matchup-primary)]'
-                                                            : 'border-[var(--matchup-text-muted)]'
+                                                        ? 'bg-[var(--matchup-primary)] border-[var(--matchup-primary)]'
+                                                        : 'border-[var(--matchup-text-muted)]'
                                                         }`}>
                                                         {isSelected && <i className="fa-solid fa-check text-white text-xs"></i>}
                                                     </div>
