@@ -773,46 +773,6 @@ export default function Home() {
             </form>
           </div>
         )}
-
-        {/* Footer */}
-        <footer className="mt-12 pt-8 border-t border-white/10">
-          <div className="flex flex-col items-center gap-6">
-            {/* GTAW Logo */}
-            <a href="https://forum-tr.gta.world" target="_blank" rel="noopener noreferrer">
-              <img
-                src="https://forum-tr.gta.world/uploads/monthly_2025_02/logo.png.3fe10156c1213bdb8f59cd9bc9e15781.png"
-                alt="GTA World TR"
-                className="h-10 opacity-70 hover:opacity-100 transition-opacity"
-              />
-            </a>
-
-            {/* Social Links */}
-            <div className="flex items-center gap-6">
-              <a
-                href="https://discord.gg/gtaw"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-[var(--matchup-text-muted)] hover:text-[#5865F2] transition-colors"
-              >
-                <i className="fa-brands fa-discord text-2xl"></i>
-                <span className="text-sm">Discord</span>
-              </a>
-              <a
-                href="https://facebrowser-tr.gta.world"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-[var(--matchup-text-muted)] hover:text-[var(--matchup-primary)] transition-colors"
-              >
-                <i className="fa-solid fa-globe text-2xl"></i>
-                <span className="text-sm">Facebrowser</span>
-              </a>
-            </div>
-
-            <p className="text-[var(--matchup-text-muted)] text-xs">
-              Başvuru yaparak gizlilik politikamızı kabul etmiş olursunuz.
-            </p>
-          </div>
-        </footer>
       </div>
 
       {/* Toast */}
