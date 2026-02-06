@@ -402,8 +402,8 @@ export default function Home() {
 
   // Character selected - show matches or form
   return (
-    <main className="min-h-screen py-12 px-4">
-      <div className="max-w-lg mx-auto">
+    <main className="py-12 px-4">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8 animate-fade-in">
           <Image
@@ -451,7 +451,7 @@ export default function Home() {
                   {matches.length > 0 ? (
                     <><i className="fa-solid fa-heart text-[var(--matchup-primary)] mr-2"></i>Eşleşmeleriniz</>
                   ) : (
-                    <><i className="fa-solid fa-sparkles text-yellow-400 mr-2"></i>Profilin Hazır!</>
+                    <>Profilin Hazır!</>
                   )}
                 </h2>
                 <p className="text-[var(--matchup-text-muted)]">

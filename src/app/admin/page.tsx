@@ -387,7 +387,7 @@ export default function AdminPage() {
     // Login Screen
     if (!isAuthenticated) {
         return (
-            <main className="min-h-screen flex items-center justify-center px-4">
+            <main className="flex items-center justify-center px-4 py-20">
                 <div className="card max-w-md w-full animate-fade-in">
                     <div className="text-center mb-8">
                         <Image
@@ -440,7 +440,7 @@ export default function AdminPage() {
 
     // Admin Dashboard
     return (
-        <main className="min-h-screen py-8 px-4">
+        <main className="py-8 px-4">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8 animate-fade-in">
@@ -748,7 +748,7 @@ export default function AdminPage() {
                     <div className="space-y-6 animate-fade-in">
                         <div className="card bg-gradient-to-r from-green-600 to-emerald-600">
                             <div className="flex items-center gap-3">
-                                <i className="fa-solid fa-wand-magic-sparkles text-2xl"></i>
+
                                 <div>
                                     <h2 className="text-xl font-bold">Önerilen Eşleşmeler</h2>
                                     <p className="text-white/80 text-sm">
@@ -762,7 +762,7 @@ export default function AdminPage() {
                             <div className="card text-center py-16">
                                 <i className="fa-solid fa-check-circle text-6xl text-green-500 mb-4"></i>
                                 <p className="text-[var(--matchup-text-muted)] text-lg">
-                                    Tüm uyumlu kişiler eşleştirilmiş! 🎉
+                                    Tüm uyumlu kişiler eşleştirilmiş!
                                 </p>
                             </div>
                         ) : (

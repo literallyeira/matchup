@@ -2,15 +2,21 @@
 
 :root {
   /* Vibrant Theme: Pink/Orange Gradient base */
-  --matchup-primary: #ec4899; /* Pink-500 */
-  --matchup-primary-dark: #be185d; /* Pink-700 */
-  --matchup-primary-light: #f472b6; /* Pink-400 */
-  
-  --matchup-gradient-start: #ec4899;
-  --matchup-gradient-end: #f97316; /* Orange-500 */
+  --matchup-primary: #ec4899;
+  /* Pink-500 */
+  --matchup-primary-dark: #be185d;
+  /* Pink-700 */
+  --matchup-primary-light: #f472b6;
+  /* Pink-400 */
 
-  --matchup-bg-dark: #0f0f13; /* Very dark blue-ish grey */
-  --matchup-bg-card: rgba(20, 20, 25, 0.7); /* Glassmorphism base */
+  --matchup-gradient-start: #ec4899;
+  --matchup-gradient-end: #f97316;
+  /* Orange-500 */
+
+  --matchup-bg-dark: #0f0f13;
+  /* Very dark blue-ish grey */
+  --matchup-bg-card: rgba(20, 20, 25, 0.7);
+  /* Glassmorphism base */
   --matchup-bg-input: rgba(30, 30, 40, 0.5);
   --matchup-border: rgba(255, 255, 255, 0.1);
   --matchup-text: #FAFAFA;
@@ -23,7 +29,7 @@
 
 body {
   background-color: var(--matchup-bg-dark);
-  background-image: 
+  background-image:
     radial-gradient(circle at 15% 50%, rgba(236, 72, 153, 0.15), transparent 25%),
     radial-gradient(circle at 85% 30%, rgba(249, 115, 22, 0.15), transparent 25%);
   background-attachment: fixed;
@@ -58,7 +64,7 @@ body {
   border: 1px solid var(--matchup-border);
   border-radius: 12px;
   color: var(--matchup-text);
-  font-size: 16px;
+  font-size: 15px;
   transition: all 0.3s ease;
   backdrop-filter: blur(4px);
 }
@@ -76,7 +82,7 @@ body {
 
 .form-label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--matchup-text-muted);
   margin-bottom: 8px;
@@ -85,12 +91,12 @@ body {
 /* Button styles */
 .btn-primary {
   width: 100%;
-  padding: 16px 24px;
+  padding: 14px 20px;
   background: linear-gradient(135deg, var(--matchup-gradient-start), var(--matchup-gradient-end));
   border: none;
   border-radius: 12px;
   color: white;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -117,12 +123,12 @@ body {
 }
 
 .btn-secondary {
-  padding: 12px 24px;
+  padding: 10px 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--matchup-border);
   border-radius: 10px;
   color: var(--matchup-text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -173,6 +179,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -180,9 +187,12 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -262,6 +272,7 @@ body {
     opacity: 0;
     transform: translateX(100px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -274,7 +285,7 @@ body {
     padding: 24px;
     border-radius: 16px;
   }
-  
+
   .form-input {
     padding: 12px 16px;
   }
