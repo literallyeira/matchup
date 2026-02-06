@@ -495,12 +495,7 @@ export default function Home() {
                         <h3 className="text-2xl font-bold text-white drop-shadow-lg">
                           {match.matchedWith.first_name} {match.matchedWith.last_name}
                         </h3>
-                        {match.matchedWith.character_name && (
-                          <p className="text-[var(--matchup-primary)] font-medium drop-shadow">
-                            <i className="fa-solid fa-gamepad mr-1"></i>
-                            {match.matchedWith.character_name}
-                          </p>
-                        )}
+
                       </div>
 
                       {/* Heart badge */}
@@ -693,7 +688,7 @@ export default function Home() {
                   </select>
                 </div>
                 <div>
-                  <label className="form-label">Cinsel Tercih</label>
+                  <label className="form-label">Yönelim</label>
                   <select
                     className="form-input"
                     value={formData.sexualPreference}

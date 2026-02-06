@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
@@ -587,7 +587,7 @@ export default function AdminPage() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="form-label text-sm">Cinsel Tercih</label>
+                                    <label className="form-label text-sm">Yönelim</label>
                                     <select
                                         className="form-input"
                                         value={filterPreference}
@@ -703,7 +703,7 @@ export default function AdminPage() {
                                                             <p className="font-semibold">{getGenderLabel(app.gender)}</p>
                                                         </div>
                                                         <div>
-                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Tercih</span>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Yönelim</span>
                                                             <p className="font-semibold">{getSexualPreferenceLabel(app.sexual_preference)}</p>
                                                         </div>
                                                         <div>
