@@ -17,7 +17,7 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'applications' | 'matches'>('applications');
+    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'suggestions'>('applications');
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -265,6 +265,97 @@ export default function AdminPage() {
         return labels[value] || value;
     };
 
+    // Check if two people are compatible
+    const areCompatible = (app1: Application, app2: Application): boolean => {
+        // Already matched?
+        const alreadyMatched = matches.some(m =>
+            (m.application_1_id === app1.id && m.application_2_id === app2.id) ||
+            (m.application_1_id === app2.id && m.application_2_id === app1.id)
+        );
+        if (alreadyMatched) return false;
+
+        const g1 = app1.gender;
+        const g2 = app2.gender;
+        const p1 = app1.sexual_preference;
+        const p2 = app2.sexual_preference;
+
+        // Heterosexual logic
+        if (p1 === 'heteroseksuel' && p2 === 'heteroseksuel') {
+            return (g1 === 'erkek' && g2 === 'kadin') || (g1 === 'kadin' && g2 === 'erkek');
+        }
+
+        // Homosexual logic
+        if (p1 === 'homoseksuel' && p2 === 'homoseksuel') {
+            return g1 === g2;
+        }
+
+        // Bisexual is compatible with anyone who might be interested
+        if (p1 === 'biseksuel') {
+            if (p2 === 'biseksuel') return true;
+            if (p2 === 'heteroseksuel') return (g1 !== g2);
+            if (p2 === 'homoseksuel') return (g1 === g2);
+        }
+        if (p2 === 'biseksuel') {
+            if (p1 === 'heteroseksuel') return (g1 !== g2);
+            if (p1 === 'homoseksuel') return (g1 === g2);
+        }
+
+        // 'diger' matches with anyone
+        if (p1 === 'diger' || p2 === 'diger') return true;
+
+        return false;
+    };
+
+    // Get suggested matches (compatible pairs)
+    const suggestedMatches = useMemo(() => {
+        const suggestions: { app1: Application; app2: Application }[] = [];
+        const seen = new Set<string>();
+
+        for (let i = 0; i < applications.length; i++) {
+            for (let j = i + 1; j < applications.length; j++) {
+                const app1 = applications[i];
+                const app2 = applications[j];
+                const key = [app1.id, app2.id].sort().join('-');
+
+                if (!seen.has(key) && areCompatible(app1, app2)) {
+                    seen.add(key);
+                    suggestions.push({ app1, app2 });
+                }
+            }
+        }
+
+        return suggestions;
+    }, [applications, matches]);
+
+    // Quick match function
+    const quickMatch = async (app1Id: string, app2Id: string) => {
+        setIsCreatingMatch(true);
+        try {
+            const response = await fetch('/api/matches', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': password || localStorage.getItem('adminPassword') || ''
+                },
+                body: JSON.stringify({
+                    application1Id: app1Id,
+                    application2Id: app2Id
+                })
+            });
+
+            if (response.ok) {
+                fetchMatches();
+            } else {
+                const result = await response.json();
+                alert(result.error || 'Eşleştirme hatası!');
+            }
+        } catch {
+            alert('Bağlantı hatası!');
+        } finally {
+            setIsCreatingMatch(false);
+        }
+    };
+
     // Login Screen
     if (!isAuthenticated) {
         return (
@@ -340,8 +431,8 @@ export default function AdminPage() {
                         <button
                             onClick={toggleTestMode}
                             className={`px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2 ${testMode
-                                    ? 'bg-yellow-500 text-black'
-                                    : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                                ? 'bg-yellow-500 text-black'
+                                : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
                                 }`}
                         >
                             <i className="fa-solid fa-flask"></i>
@@ -363,7 +454,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-4 mb-6 animate-fade-in">
+                <div className="flex gap-4 mb-6 animate-fade-in flex-wrap">
                     <button
                         onClick={() => setActiveTab('applications')}
                         className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'applications'
@@ -372,6 +463,15 @@ export default function AdminPage() {
                             }`}
                     >
                         <i className="fa-solid fa-users mr-2"></i>Başvurular ({applications.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('suggestions')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'suggestions'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-wand-magic-sparkles mr-2"></i>Önerilen ({suggestedMatches.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('matches')}
@@ -614,6 +714,102 @@ export default function AdminPage() {
                             </div>
                         )}
                     </>
+                )}
+
+                {activeTab === 'suggestions' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="card bg-gradient-to-r from-green-600 to-emerald-600">
+                            <div className="flex items-center gap-3">
+                                <i className="fa-solid fa-wand-magic-sparkles text-2xl"></i>
+                                <div>
+                                    <h2 className="text-xl font-bold">Önerilen Eşleşmeler</h2>
+                                    <p className="text-white/80 text-sm">
+                                        Cinsiyet ve yönelime göre uyumlu kişiler otomatik tespit edildi
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {suggestedMatches.length === 0 ? (
+                            <div className="card text-center py-16">
+                                <i className="fa-solid fa-check-circle text-6xl text-green-500 mb-4"></i>
+                                <p className="text-[var(--matchup-text-muted)] text-lg">
+                                    Tüm uyumlu kişiler eşleştirilmiş! 🎉
+                                </p>
+                            </div>
+                        ) : (
+                            suggestedMatches.map(({ app1, app2 }, index) => (
+                                <div
+                                    key={`${app1.id}-${app2.id}`}
+                                    className="card animate-fade-in"
+                                    style={{ animationDelay: `${0.05 * index}s` }}
+                                >
+                                    <div className="flex flex-col md:flex-row items-center gap-4">
+                                        {/* Person 1 */}
+                                        <div className="flex-1 flex items-center gap-4">
+                                            {app1.photo_url && (
+                                                <div
+                                                    className="w-16 h-16 rounded-full overflow-hidden cursor-pointer flex-shrink-0"
+                                                    onClick={() => setSelectedImage(app1.photo_url)}
+                                                >
+                                                    <img src={app1.photo_url} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="font-bold">{app1.first_name} {app1.last_name}</p>
+                                                <div className="flex gap-2 text-sm">
+                                                    <span className="px-2 py-0.5 rounded bg-[var(--matchup-bg-input)]">
+                                                        {getGenderLabel(app1.gender)}
+                                                    </span>
+                                                    <span className="px-2 py-0.5 rounded bg-[var(--matchup-bg-input)]">
+                                                        {getSexualPreferenceLabel(app1.sexual_preference)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Match Icon */}
+                                        <div className="text-3xl text-[var(--matchup-primary)]">
+                                            <i className="fa-solid fa-heart"></i>
+                                        </div>
+
+                                        {/* Person 2 */}
+                                        <div className="flex-1 flex items-center gap-4 md:flex-row-reverse md:text-right">
+                                            {app2.photo_url && (
+                                                <div
+                                                    className="w-16 h-16 rounded-full overflow-hidden cursor-pointer flex-shrink-0"
+                                                    onClick={() => setSelectedImage(app2.photo_url)}
+                                                >
+                                                    <img src={app2.photo_url} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="font-bold">{app2.first_name} {app2.last_name}</p>
+                                                <div className="flex gap-2 text-sm md:justify-end">
+                                                    <span className="px-2 py-0.5 rounded bg-[var(--matchup-bg-input)]">
+                                                        {getGenderLabel(app2.gender)}
+                                                    </span>
+                                                    <span className="px-2 py-0.5 rounded bg-[var(--matchup-bg-input)]">
+                                                        {getSexualPreferenceLabel(app2.sexual_preference)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Quick Match Button */}
+                                        <button
+                                            onClick={() => quickMatch(app1.id, app2.id)}
+                                            disabled={isCreatingMatch}
+                                            className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
+                                        >
+                                            <i className="fa-solid fa-check"></i>
+                                            Eşleştir
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 )}
 
                 {activeTab === 'matches' && (
