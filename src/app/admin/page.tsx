@@ -395,7 +395,7 @@ export default function AdminPage() {
                 <div className="card max-w-md w-full animate-fade-in">
                     <div className="text-center mb-8">
                         <Image
-                            src="/logo.png"
+                            src="/matchup_logo.png"
                             alt="MatchUp Logo"
                             width={180}
                             height={50}
@@ -454,7 +454,7 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between mb-8 animate-fade-in">
                     <div className="flex items-center gap-4">
                         <Image
-                            src="/logo.png"
+                            src="/matchup_logo.png"
                             alt="MatchUp Logo"
                             width={140}
                             height={40}

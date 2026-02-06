@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "MatchUp ile hayatının aşkını bul! Hemen başvur, eşleş ve tanış.",
   keywords: "çöpçatanlık, eşleşme, tanışma, aşk, matchup",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/favicon.png",
   },
   openGraph: {
     title: "MatchUp",

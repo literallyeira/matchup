@@ -277,7 +277,7 @@ export default function Home() {
       <main className="flex items-center justify-center px-4 py-20">
         <div className="card max-w-md w-full text-center animate-fade-in">
           <Image
-            src="/logo.png"
+            src="/matchup_logo.png"
             alt="MatchUp Logo"
             width={220}
             height={60}
@@ -335,7 +335,7 @@ export default function Home() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8 animate-fade-in">
             <Image
-              src="/logo.png"
+              src="/matchup_logo.png"
               alt="MatchUp Logo"
               width={140}
               height={40}
@@ -405,7 +405,7 @@ export default function Home() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8 animate-fade-in">
           <Image
-            src="/logo.png"
+            src="/matchup_logo.png"
             alt="MatchUp Logo"
             width={140}
             height={40}
@@ -645,31 +645,7 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Name Fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="form-label">İsim</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Adın"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Soyisim</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Soyadın"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
+
 
               {/* Age & Weight */}
               <div className="grid grid-cols-2 gap-4">
