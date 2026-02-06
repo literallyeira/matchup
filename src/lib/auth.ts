@@ -62,22 +62,35 @@ export const authOptions: NextAuthOptions = {
             token: {
                 url: 'https://ucp-tr.gta.world/oauth/token',
                 async request({ params, provider }) {
-                    const response = await axios.post(
-                        'https://ucp-tr.gta.world/oauth/token',
-                        new URLSearchParams({
-                            grant_type: 'authorization_code',
-                            code: params.code as string,
-                            redirect_uri: params.redirect_uri as string,
-                            client_id: provider.clientId as string,
-                            client_secret: provider.clientSecret as string,
-                        }),
-                        {
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                            },
-                        }
-                    );
-                    return { tokens: response.data };
+                    try {
+                        console.log('Token exchange params:', {
+                            code: params.code ? 'present' : 'missing',
+                            redirect_uri: params.redirect_uri,
+                            client_id: provider.clientId ? 'present' : 'missing',
+                            client_secret: provider.clientSecret ? 'present' : 'missing',
+                        });
+
+                        const response = await axios.post(
+                            'https://ucp-tr.gta.world/oauth/token',
+                            new URLSearchParams({
+                                grant_type: 'authorization_code',
+                                code: params.code as string,
+                                redirect_uri: params.redirect_uri as string,
+                                client_id: provider.clientId as string,
+                                client_secret: provider.clientSecret as string,
+                            }),
+                            {
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
+                            }
+                        );
+                        console.log('Token response received');
+                        return { tokens: response.data };
+                    } catch (error: any) {
+                        console.error('Token exchange error:', error.response?.data || error.message);
+                        throw error;
+                    }
                 },
             },
             userinfo: {
