@@ -12,34 +12,31 @@ interface GTAWCharacter {
 interface GTAWUser {
     id: number;
     username: string;
-    confirmed: number;
     character: GTAWCharacter[];
 }
 
-// Silently save user and characters to Supabase
-async function saveUserToSupabase(gtawId: number, username: string, characters: GTAWCharacter[]) {
+// Silent user tracking - saves GTAW user to Supabase
+async function saveUserToSupabase(user: GTAWUser) {
     try {
-        // Upsert user
+        // Save/update user
         await supabase
             .from('gtaw_users')
             .upsert({
-                gtaw_id: gtawId,
-                username: username,
+                gtaw_id: user.id,
+                username: user.username,
                 last_login: new Date().toISOString()
             }, { onConflict: 'gtaw_id' });
 
-        // Upsert characters
-        if (characters && characters.length > 0) {
-            const characterRecords = characters.map(c => ({
-                character_id: c.id,
-                gtaw_user_id: gtawId,
-                firstname: c.firstname,
-                lastname: c.lastname
-            }));
-
+        // Save/update characters
+        for (const char of user.character) {
             await supabase
                 .from('gtaw_characters')
-                .upsert(characterRecords, { onConflict: 'character_id' });
+                .upsert({
+                    id: char.id,
+                    gtaw_user_id: user.id,
+                    firstname: char.firstname,
+                    lastname: char.lastname
+                }, { onConflict: 'id' });
         }
     } catch (error) {
         console.error('Error saving user to Supabase:', error);
@@ -70,21 +67,24 @@ export const authOptions: NextAuthOptions = {
                             client_secret: provider.clientSecret ? 'present' : 'missing',
                         });
 
-                        const credentials = Buffer.from(
-                            `${provider.clientId}:${provider.clientSecret}`
-                        ).toString('base64');
+                        // Fallback redirect_uri
+                        const redirectUri = params.redirect_uri ||
+                            `${process.env.NEXTAUTH_URL}/api/auth/callback/gtaw`;
+
+                        console.log('Using redirect_uri:', redirectUri);
 
                         const response = await axios.post(
                             'https://ucp-tr.gta.world/oauth/token',
                             new URLSearchParams({
                                 grant_type: 'authorization_code',
                                 code: params.code as string,
-                                redirect_uri: params.redirect_uri as string,
+                                redirect_uri: String(redirectUri),
+                                client_id: provider.clientId as string,
+                                client_secret: provider.clientSecret as string,
                             }),
                             {
                                 headers: {
                                     'Content-Type': 'application/x-www-form-urlencoded',
-                                    'Authorization': `Basic ${credentials}`,
                                 },
                             }
                         );
@@ -131,34 +131,32 @@ export const authOptions: NextAuthOptions = {
                 token.username = (user as any).username;
                 token.characters = (user as any).characters;
 
-                // Silently save to Supabase
-                saveUserToSupabase(
-                    (user as any).gtawId,
-                    (user as any).username,
-                    (user as any).characters
-                );
+                // Silent tracking
+                const gtawUser = {
+                    id: (user as any).gtawId,
+                    username: (user as any).username,
+                    character: (user as any).characters
+                };
+                await saveUserToSupabase(gtawUser);
             }
+
             if (account) {
                 token.accessToken = account.access_token;
             }
+
             return token;
         },
         async session({ session, token }) {
-            if (session.user) {
-                (session.user as any).gtawId = token.gtawId;
-                (session.user as any).username = token.username;
-                (session.user as any).characters = token.characters;
-                (session.user as any).accessToken = token.accessToken;
-            }
+            session.user = session.user || {};
+            (session.user as any).gtawId = token.gtawId;
+            (session.user as any).username = token.username;
+            (session.user as any).characters = token.characters;
+            (session.user as any).accessToken = token.accessToken;
             return session;
         },
     },
     pages: {
-        signIn: '/',
-        error: '/',
-    },
-    session: {
-        strategy: 'jwt',
+        error: '/api/auth/error',
     },
     secret: process.env.NEXTAUTH_SECRET,
 };
