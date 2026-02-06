@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { Application, Match } from '@/lib/supabase';
 
@@ -10,9 +11,9 @@ interface MatchWithApps extends Match {
 }
 
 export default function AdminPage() {
+    const { data: session, status: sessionStatus } = useSession();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
-    const [adminName, setAdminName] = useState('');
     const [applications, setApplications] = useState<Application[]>([]);
     const [matches, setMatches] = useState<MatchWithApps[]>([]);
     const [rejectedPairs, setRejectedPairs] = useState<Set<string>>(new Set());
@@ -61,8 +62,7 @@ export default function AdminPage() {
                 setApplications(data);
                 setIsAuthenticated(true);
                 localStorage.setItem('adminPassword', password);
-                localStorage.setItem('adminName', adminName);
-                fetchMatches(password, adminName);
+                fetchMatches(password);
             } else {
                 setError('Yanlış şifre!');
             }
@@ -79,7 +79,7 @@ export default function AdminPage() {
             const response = await fetch('/api/applications', {
                 headers: {
                     'Authorization': savedPassword || password,
-                    'X-Admin-Name': adminName || localStorage.getItem('adminName') || 'admin'
+                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
                 }
             });
 
@@ -94,12 +94,12 @@ export default function AdminPage() {
         }
     };
 
-    const fetchMatches = async (savedPassword?: string, savedAdminName?: string) => {
+    const fetchMatches = async (savedPassword?: string) => {
         try {
             const response = await fetch('/api/matches', {
                 headers: {
                     'Authorization': savedPassword || password,
-                    'X-Admin-Name': savedAdminName || adminName || localStorage.getItem('adminName') || 'admin'
+                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
                 }
             });
 
@@ -142,7 +142,7 @@ export default function AdminPage() {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': password || localStorage.getItem('adminPassword') || '',
-                    'X-Admin-Name': adminName || localStorage.getItem('adminName') || 'admin'
+                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
                 },
                 body: JSON.stringify({ id })
             });
@@ -163,7 +163,7 @@ export default function AdminPage() {
                 method: 'DELETE',
                 headers: {
                     'Authorization': password || localStorage.getItem('adminPassword') || '',
-                    'X-Admin-Name': adminName || localStorage.getItem('adminName') || 'admin'
+                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
                 }
             });
 
@@ -188,7 +188,7 @@ export default function AdminPage() {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': password || localStorage.getItem('adminPassword') || '',
-                    'X-Admin-Name': adminName || localStorage.getItem('adminName') || 'admin'
+                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
                 },
                 body: JSON.stringify({
                     application1Id: selectedForMatch[0],
@@ -243,18 +243,15 @@ export default function AdminPage() {
         setMatches([]);
         setRejectedPairs(new Set());
         localStorage.removeItem('adminPassword');
-        localStorage.removeItem('adminName');
     };
 
     useEffect(() => {
         const savedPassword = localStorage.getItem('adminPassword');
-        const savedAdminName = localStorage.getItem('adminName');
         if (savedPassword) {
             setPassword(savedPassword);
-            if (savedAdminName) setAdminName(savedAdminName);
             setIsAuthenticated(true);
             fetchApplications(savedPassword);
-            fetchMatches(savedPassword, savedAdminName || undefined);
+            fetchMatches(savedPassword);
             fetchRejectedPairs(savedPassword);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -369,7 +366,8 @@ export default function AdminPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': password || localStorage.getItem('adminPassword') || ''
+                    'Authorization': password || localStorage.getItem('adminPassword') || '',
+                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
                 },
                 body: JSON.stringify({
                     application1Id: app1Id,
@@ -405,21 +403,14 @@ export default function AdminPage() {
                             priority
                         />
                         <h1 className="text-2xl font-bold">Admin Paneli</h1>
-                        <p className="text-[var(--matchup-text-muted)] mt-2">Giriş yapmak için bilgilerinizi girin</p>
+                        {session?.user ? (
+                            <p className="text-[var(--matchup-text-muted)] mt-2">Merhaba, <span className="text-white font-medium">{(session.user as any).username || session.user.name}</span></p>
+                        ) : (
+                            <p className="text-orange-400 mt-2">Lütfen önce UCP ile giriş yapın.</p>
+                        )}
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-6">
-                        <div>
-                            <label className="form-label">Admin Adı</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="Adınız"
-                                value={adminName}
-                                onChange={(e) => setAdminName(e.target.value)}
-                                required
-                            />
-                        </div>
                         <div>
                             <label className="form-label">Şifre</label>
                             <input
