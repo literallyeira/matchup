@@ -451,7 +451,7 @@ export default function Home() {
                   {matches.length > 0 ? (
                     <><i className="fa-solid fa-heart text-[var(--matchup-primary)] mr-2"></i>Eşleşmeleriniz</>
                   ) : (
-                    <>Profilin Hazır! ✨</>
+                    <><i className="fa-solid fa-sparkles text-yellow-400 mr-2"></i>Profilin Hazır!</>
                   )}
                 </h2>
                 <p className="text-[var(--matchup-text-muted)]">
