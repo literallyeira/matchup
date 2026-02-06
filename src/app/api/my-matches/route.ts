@@ -62,7 +62,8 @@ export async function GET(request: Request) {
             return {
                 id: match.id,
                 created_at: match.created_at,
-                matchedWith
+                matchedWith,
+                myApplicationId: myApplication.id
             };
         }) || [];
 

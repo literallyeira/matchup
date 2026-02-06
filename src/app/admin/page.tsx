@@ -14,6 +14,7 @@ export default function AdminPage() {
     const [password, setPassword] = useState('');
     const [applications, setApplications] = useState<Application[]>([]);
     const [matches, setMatches] = useState<MatchWithApps[]>([]);
+    const [rejectedPairs, setRejectedPairs] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -104,6 +105,27 @@ export default function AdminPage() {
             }
         } catch {
             console.error('Fetch matches error');
+        }
+    };
+
+    const fetchRejectedPairs = async (savedPassword?: string) => {
+        try {
+            const response = await fetch('/api/rejected-matches', {
+                headers: {
+                    'Authorization': savedPassword || password
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const pairs = new Set<string>();
+                data.forEach((r: { application_1_id: string; application_2_id: string }) => {
+                    pairs.add([r.application_1_id, r.application_2_id].sort().join('-'));
+                });
+                setRejectedPairs(pairs);
+            }
+        } catch {
+            console.error('Fetch rejected error');
         }
     };
 
@@ -212,6 +234,7 @@ export default function AdminPage() {
         setPassword('');
         setApplications([]);
         setMatches([]);
+        setRejectedPairs(new Set());
         localStorage.removeItem('adminPassword');
     };
 
@@ -222,6 +245,7 @@ export default function AdminPage() {
             setIsAuthenticated(true);
             fetchApplications(savedPassword);
             fetchMatches(savedPassword);
+            fetchRejectedPairs(savedPassword);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -273,6 +297,10 @@ export default function AdminPage() {
             (m.application_1_id === app2.id && m.application_2_id === app1.id)
         );
         if (alreadyMatched) return false;
+
+        // Already rejected?
+        const pairKey = [app1.id, app2.id].sort().join('-');
+        if (rejectedPairs.has(pairKey)) return false;
 
         const g1 = app1.gender;
         const g2 = app2.gender;

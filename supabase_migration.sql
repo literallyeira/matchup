@@ -62,3 +62,19 @@ ALTER TABLE gtaw_characters ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all access to gtaw_users" ON gtaw_users FOR ALL USING (true);
 CREATE POLICY "Allow all access to gtaw_characters" ON gtaw_characters FOR ALL USING (true);
+
+-- 6. Reddedilen Eşleşmeler (Önerilen eşleşmelerde tekrar gösterilmez)
+CREATE TABLE IF NOT EXISTS rejected_matches (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  application_1_id UUID REFERENCES applications(id) ON DELETE CASCADE,
+  application_2_id UUID REFERENCES applications(id) ON DELETE CASCADE,
+  rejected_by UUID REFERENCES applications(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(application_1_id, application_2_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rejected_app1 ON rejected_matches(application_1_id);
+CREATE INDEX IF NOT EXISTS idx_rejected_app2 ON rejected_matches(application_2_id);
+
+ALTER TABLE rejected_matches ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all access to rejected_matches" ON rejected_matches FOR ALL USING (true);

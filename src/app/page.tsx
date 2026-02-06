@@ -30,6 +30,7 @@ interface Match {
   id: string;
   created_at: string;
   matchedWith: MatchedPerson;
+  myApplicationId: string;
 }
 
 // Test mode mock data
@@ -50,6 +51,7 @@ export default function Home() {
   const [hasApplication, setHasApplication] = useState(false);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   // Test mode state
   const [testMode, setTestMode] = useState(false);
@@ -127,6 +129,30 @@ export default function Home() {
       console.error('Error fetching matches:', error);
     } finally {
       setIsLoadingMatches(false);
+    }
+  };
+
+  const rejectMatch = async (matchId: string, myApplicationId: string, matchedApplicationId: string) => {
+    if (!confirm('Bu eşleşmeyi reddetmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
+
+    setRejectingId(matchId);
+    try {
+      const response = await fetch('/api/reject-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, myApplicationId, matchedApplicationId })
+      });
+
+      if (response.ok) {
+        setMatches(matches.filter(m => m.id !== matchId));
+        showToast('Eşleşme reddedildi.', 'success');
+      } else {
+        showToast('Bir hata oluştu.', 'error');
+      }
+    } catch {
+      showToast('Bağlantı hatası!', 'error');
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -437,63 +463,107 @@ export default function Home() {
                 {matches.map((match, index) => (
                   <div
                     key={match.id}
-                    className="card animate-fade-in"
+                    className="card animate-fade-in overflow-hidden p-0"
                     style={{ animationDelay: `${0.1 * (index + 1)}s` }}
                   >
-                    <div className="flex gap-4">
-                      {match.matchedWith.photo_url && (
-                        <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--matchup-bg-input)]">
-                          <img
-                            src={match.matchedWith.photo_url}
-                            alt={`${match.matchedWith.first_name}`}
-                            className="w-full h-full object-cover"
-                          />
+                    {/* Photo with gradient overlay */}
+                    <div className="relative h-64 w-full">
+                      {match.matchedWith.photo_url ? (
+                        <img
+                          src={match.matchedWith.photo_url}
+                          alt={`${match.matchedWith.first_name}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-[var(--matchup-primary)] to-purple-600 flex items-center justify-center">
+                          <i className="fa-solid fa-user text-6xl text-white/50"></i>
                         </div>
                       )}
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+
+                      {/* Name overlay on photo */}
+                      <div className="absolute bottom-4 left-4 right-4">
+                        <h3 className="text-2xl font-bold text-white drop-shadow-lg">
                           {match.matchedWith.first_name} {match.matchedWith.last_name}
                         </h3>
                         {match.matchedWith.character_name && (
-                          <p className="text-[var(--matchup-primary)] text-sm mb-2">
+                          <p className="text-[var(--matchup-primary)] font-medium drop-shadow">
+                            <i className="fa-solid fa-gamepad mr-1"></i>
                             {match.matchedWith.character_name}
                           </p>
                         )}
-                        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                          <div>
-                            <span className="text-[var(--matchup-text-muted)]">Yaş: </span>
-                            <span className="font-medium">{match.matchedWith.age}</span>
-                          </div>
-                          <div>
-                            <span className="text-[var(--matchup-text-muted)]">Kilo: </span>
-                            <span className="font-medium">{match.matchedWith.weight} kg</span>
-                          </div>
-                          <div>
-                            <span className="text-[var(--matchup-text-muted)]">Cinsiyet: </span>
-                            <span className="font-medium">{getGenderLabel(match.matchedWith.gender)}</span>
-                          </div>
-                          <div>
-                            <span className="text-[var(--matchup-text-muted)]">Tercih: </span>
-                            <span className="font-medium">{getSexualPreferenceLabel(match.matchedWith.sexual_preference)}</span>
-                          </div>
-                        </div>
+                      </div>
+
+                      {/* Heart badge */}
+                      <div className="absolute top-4 right-4 bg-[var(--matchup-primary)] rounded-full p-3 shadow-lg">
+                        <i className="fa-solid fa-heart text-white text-xl"></i>
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-white/10">
-                      <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                        <div className="flex items-center gap-2">
+                    {/* Info section */}
+                    <div className="p-5">
+                      {/* Quick stats */}
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <span className="px-3 py-1 rounded-full bg-[var(--matchup-bg-input)] text-sm">
+                          <i className="fa-solid fa-cake-candles mr-1 text-[var(--matchup-primary)]"></i>
+                          {match.matchedWith.age} yaş
+                        </span>
+                        <span className="px-3 py-1 rounded-full bg-[var(--matchup-bg-input)] text-sm">
+                          <i className="fa-solid fa-weight-scale mr-1 text-[var(--matchup-primary)]"></i>
+                          {match.matchedWith.weight} kg
+                        </span>
+                        <span className="px-3 py-1 rounded-full bg-[var(--matchup-bg-input)] text-sm">
+                          <i className="fa-solid fa-venus-mars mr-1 text-[var(--matchup-primary)]"></i>
+                          {getGenderLabel(match.matchedWith.gender)}
+                        </span>
+                      </div>
+
+                      {/* Contact info */}
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <a
+                          href={`tel:${match.matchedWith.phone}`}
+                          className="flex items-center gap-2 p-3 rounded-xl bg-[var(--matchup-bg-input)] hover:bg-white/10 transition-colors"
+                        >
                           <i className="fa-solid fa-phone text-[var(--matchup-primary)]"></i>
-                          <span>{match.matchedWith.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{match.matchedWith.phone}</span>
+                        </a>
+                        <a
+                          href={`https://facebrowser-tr.gta.world/profile/${match.matchedWith.facebrowser}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-3 rounded-xl bg-[var(--matchup-bg-input)] hover:bg-white/10 transition-colors"
+                        >
                           <i className="fa-solid fa-at text-[var(--matchup-primary)]"></i>
-                          <span>{match.matchedWith.facebrowser}</span>
-                        </div>
+                          <span className="text-sm font-medium truncate">{match.matchedWith.facebrowser}</span>
+                        </a>
                       </div>
-                      <div className="bg-[var(--matchup-bg-input)] rounded-xl p-3">
-                        <p className="text-sm">{match.matchedWith.description}</p>
+
+                      {/* Description */}
+                      <div className="bg-[var(--matchup-bg-input)] rounded-xl p-4 mb-4">
+                        <p className="text-sm leading-relaxed">{match.matchedWith.description}</p>
                       </div>
+
+                      {/* Reject button */}
+                      <button
+                        onClick={() => rejectMatch(match.id, match.myApplicationId, match.matchedWith.id)}
+                        disabled={rejectingId === match.id}
+                        className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {rejectingId === match.id ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Reddediliyor...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fa-solid fa-xmark"></i>
+                            Bu Eşleşmeyi Reddet
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 ))}
