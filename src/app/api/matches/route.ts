@@ -38,6 +38,7 @@ export async function GET(request: Request) {
 // POST - Create a new match (admin only)
 export async function POST(request: Request) {
     const authHeader = request.headers.get('Authorization');
+    const adminName = request.headers.get('X-Admin-Name') || 'admin';
 
     if (authHeader !== process.env.ADMIN_PASSWORD) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -54,29 +55,41 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Cannot match application with itself' }, { status: 400 });
         }
 
-        // Check if match already exists (in either direction)
-        const { data: existingMatch } = await supabase
-            .from('matches')
-            .select('id')
-            .or(`and(application_1_id.eq.${application1Id},application_2_id.eq.${application2Id}),and(application_1_id.eq.${application2Id},application_2_id.eq.${application1Id})`)
-            .single();
-
-        if (existingMatch) {
-            return NextResponse.json({ error: 'Match already exists' }, { status: 400 });
-        }
-
-        const { data, error } = await supabase
+        // Insert match
+        const { data: match, error } = await supabase
             .from('matches')
             .insert({
                 application_1_id: application1Id,
                 application_2_id: application2Id,
-                created_by: 'admin'
+                created_by: 'admin',
+                created_by_admin: adminName
             })
-            .select()
+            .select(`
+                *,
+                application_1:applications!matches_application_1_id_fkey(first_name, last_name),
+                application_2:applications!matches_application_2_id_fkey(first_name, last_name)
+            `)
             .single();
 
         if (error) throw error;
-        return NextResponse.json(data);
+
+        // Record log
+        if (match.application_1 && match.application_2) {
+            const app1 = Array.isArray(match.application_1) ? match.application_1[0] : match.application_1;
+            const app2 = Array.isArray(match.application_2) ? match.application_2[0] : match.application_2;
+
+            await supabase.from('logs').insert({
+                action: 'create_match',
+                admin_name: adminName,
+                details: {
+                    match_id: match.id,
+                    app1: `${app1.first_name} ${app1.last_name}`,
+                    app2: `${app2.first_name} ${app2.last_name}`
+                }
+            });
+        }
+
+        return NextResponse.json(match);
     } catch (error) {
         console.error('Error:', error);
         return NextResponse.json({ error: 'Server error' }, { status: 500 });
@@ -86,6 +99,7 @@ export async function POST(request: Request) {
 // DELETE - Delete a match (admin only)
 export async function DELETE(request: Request) {
     const authHeader = request.headers.get('Authorization');
+    const adminName = request.headers.get('X-Admin-Name') || 'admin';
 
     if (authHeader !== process.env.ADMIN_PASSWORD) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -99,12 +113,40 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Match ID required' }, { status: 400 });
         }
 
+        // Get details before deleting for log
+        const { data: match } = await supabase
+            .from('matches')
+            .select(`
+                id,
+                application_1:applications!matches_application_1_id_fkey(first_name, last_name),
+                application_2:applications!matches_application_2_id_fkey(first_name, last_name)
+            `)
+            .eq('id', matchId)
+            .single();
+
         const { error } = await supabase
             .from('matches')
             .delete()
             .eq('id', matchId);
 
         if (error) throw error;
+
+        // Record log if match existed
+        if (match && match.application_1 && match.application_2) {
+            const app1 = Array.isArray(match.application_1) ? match.application_1[0] : match.application_1;
+            const app2 = Array.isArray(match.application_2) ? match.application_2[0] : match.application_2;
+
+            await supabase.from('logs').insert({
+                action: 'delete_match',
+                admin_name: adminName,
+                details: {
+                    match_id: matchId,
+                    app1: `${app1.first_name} ${app1.last_name}`,
+                    app2: `${app2.first_name} ${app2.last_name}`
+                }
+            });
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error:', error);

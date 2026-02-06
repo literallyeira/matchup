@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request: NextRequest) {
     try {
         const password = request.headers.get('Authorization');
+        const adminName = request.headers.get('X-Admin-Name') || 'admin';
 
         if (password !== process.env.ADMIN_PASSWORD) {
             return NextResponse.json(
@@ -21,10 +22,10 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // First get the application to find photo URL
+        // First get the application details
         const { data: application } = await supabase
             .from('applications')
-            .select('photo_url')
+            .select('first_name, last_name, photo_url')
             .eq('id', id)
             .single();
 
@@ -50,6 +51,18 @@ export async function POST(request: NextRequest) {
                 { error: 'Silme işlemi başarısız!' },
                 { status: 500 }
             );
+        }
+
+        // Record log
+        if (application) {
+            await supabase.from('logs').insert({
+                action: 'delete_application',
+                admin_name: adminName,
+                details: {
+                    application_id: id,
+                    name: `${application.first_name} ${application.last_name}`
+                }
+            });
         }
 
         return NextResponse.json({ success: true });

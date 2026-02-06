@@ -13,7 +13,27 @@ ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 -- DELETE FROM applications a USING applications b WHERE a.id > b.id AND a.gtaw_user_id = b.gtaw_user_id AND a.character_id = b.character_id;
 -- SQL: ALTER TABLE applications ADD CONSTRAINT unique_user_character UNIQUE (gtaw_user_id, character_id);
 
--- 2. Matches tablosu oluştur
+-- 2. Matches tablosuna admin sütununu ekleyelim
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS created_by_admin TEXT;
+
+-- 3. Logs tablosu oluştur
+CREATE TABLE IF NOT EXISTS logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  action TEXT NOT NULL,
+  admin_name TEXT NOT NULL,
+  details JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS: Tüm tablolara erişim izni (Geliştirme kolaylığı için)
+ALTER TABLE logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to logs" ON logs;
+CREATE POLICY "Allow all access to logs" ON logs FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all access to matches" ON matches;
+CREATE POLICY "Allow all access to matches" ON matches FOR ALL USING (true) WITH CHECK (true);
+
+-- 4. Matches tablosu oluştur (Daha önce yoksa)
 CREATE TABLE IF NOT EXISTS matches (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   application_1_id UUID REFERENCES applications(id) ON DELETE CASCADE,

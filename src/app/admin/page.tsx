@@ -12,6 +12,7 @@ interface MatchWithApps extends Match {
 export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
+    const [adminName, setAdminName] = useState('');
     const [applications, setApplications] = useState<Application[]>([]);
     const [matches, setMatches] = useState<MatchWithApps[]>([]);
     const [rejectedPairs, setRejectedPairs] = useState<Set<string>>(new Set());
@@ -60,7 +61,8 @@ export default function AdminPage() {
                 setApplications(data);
                 setIsAuthenticated(true);
                 localStorage.setItem('adminPassword', password);
-                fetchMatches(password);
+                localStorage.setItem('adminName', adminName);
+                fetchMatches(password, adminName);
             } else {
                 setError('Yanlış şifre!');
             }
@@ -76,7 +78,8 @@ export default function AdminPage() {
         try {
             const response = await fetch('/api/applications', {
                 headers: {
-                    'Authorization': savedPassword || password
+                    'Authorization': savedPassword || password,
+                    'X-Admin-Name': adminName || localStorage.getItem('adminName') || 'admin'
                 }
             });
 
@@ -91,11 +94,12 @@ export default function AdminPage() {
         }
     };
 
-    const fetchMatches = async (savedPassword?: string) => {
+    const fetchMatches = async (savedPassword?: string, savedAdminName?: string) => {
         try {
             const response = await fetch('/api/matches', {
                 headers: {
-                    'Authorization': savedPassword || password
+                    'Authorization': savedPassword || password,
+                    'X-Admin-Name': savedAdminName || adminName || localStorage.getItem('adminName') || 'admin'
                 }
             });
 
@@ -137,7 +141,8 @@ export default function AdminPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': password || localStorage.getItem('adminPassword') || ''
+                    'Authorization': password || localStorage.getItem('adminPassword') || '',
+                    'X-Admin-Name': adminName || localStorage.getItem('adminName') || 'admin'
                 },
                 body: JSON.stringify({ id })
             });
@@ -157,7 +162,8 @@ export default function AdminPage() {
             const response = await fetch(`/api/matches?id=${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': password || localStorage.getItem('adminPassword') || ''
+                    'Authorization': password || localStorage.getItem('adminPassword') || '',
+                    'X-Admin-Name': adminName || localStorage.getItem('adminName') || 'admin'
                 }
             });
 
@@ -181,7 +187,8 @@ export default function AdminPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': password || localStorage.getItem('adminPassword') || ''
+                    'Authorization': password || localStorage.getItem('adminPassword') || '',
+                    'X-Admin-Name': adminName || localStorage.getItem('adminName') || 'admin'
                 },
                 body: JSON.stringify({
                     application1Id: selectedForMatch[0],
@@ -236,15 +243,18 @@ export default function AdminPage() {
         setMatches([]);
         setRejectedPairs(new Set());
         localStorage.removeItem('adminPassword');
+        localStorage.removeItem('adminName');
     };
 
     useEffect(() => {
         const savedPassword = localStorage.getItem('adminPassword');
+        const savedAdminName = localStorage.getItem('adminName');
         if (savedPassword) {
             setPassword(savedPassword);
+            if (savedAdminName) setAdminName(savedAdminName);
             setIsAuthenticated(true);
             fetchApplications(savedPassword);
-            fetchMatches(savedPassword);
+            fetchMatches(savedPassword, savedAdminName || undefined);
             fetchRejectedPairs(savedPassword);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -273,8 +283,7 @@ export default function AdminPage() {
     const getGenderLabel = (value: string) => {
         const labels: Record<string, string> = {
             erkek: 'Erkek',
-            kadin: 'Kadın',
-            diger: 'Diğer'
+            kadin: 'Kadın'
         };
         return labels[value] || value;
     };
@@ -283,8 +292,7 @@ export default function AdminPage() {
         const labels: Record<string, string> = {
             heteroseksuel: 'Heteroseksüel',
             homoseksuel: 'Homoseksüel',
-            biseksuel: 'Biseksüel',
-            diger: 'Diğer'
+            biseksuel: 'Biseksüel'
         };
         return labels[value] || value;
     };
@@ -328,8 +336,6 @@ export default function AdminPage() {
             if (p1 === 'homoseksuel') return (g1 === g2);
         }
 
-        // 'diger' matches with anyone
-        if (p1 === 'diger' || p2 === 'diger') return true;
 
         return false;
     };
@@ -399,10 +405,21 @@ export default function AdminPage() {
                             priority
                         />
                         <h1 className="text-2xl font-bold">Admin Paneli</h1>
-                        <p className="text-[var(--matchup-text-muted)] mt-2">Giriş yapmak için şifrenizi girin</p>
+                        <p className="text-[var(--matchup-text-muted)] mt-2">Giriş yapmak için bilgilerinizi girin</p>
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-6">
+                        <div>
+                            <label className="form-label">Admin Adı</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Adınız"
+                                value={adminName}
+                                onChange={(e) => setAdminName(e.target.value)}
+                                required
+                            />
+                        </div>
                         <div>
                             <label className="form-label">Şifre</label>
                             <input
@@ -576,7 +593,6 @@ export default function AdminPage() {
                                         <option value="">Tümü</option>
                                         <option value="erkek">Erkek</option>
                                         <option value="kadin">Kadın</option>
-                                        <option value="diger">Diğer</option>
                                     </select>
                                 </div>
                                 <div>
@@ -590,7 +606,6 @@ export default function AdminPage() {
                                         <option value="heteroseksuel">Heteroseksüel</option>
                                         <option value="homoseksuel">Homoseksüel</option>
                                         <option value="biseksuel">Biseksüel</option>
-                                        <option value="diger">Diğer</option>
                                     </select>
                                 </div>
                                 <div className="col-span-2 flex items-end">

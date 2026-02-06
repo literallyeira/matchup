@@ -245,8 +245,7 @@ export default function Home() {
   const getGenderLabel = (value: string) => {
     const labels: Record<string, string> = {
       erkek: 'Erkek',
-      kadin: 'Kadın',
-      diger: 'Diğer'
+      kadin: 'Kadın'
     };
     return labels[value] || value;
   };
@@ -255,8 +254,7 @@ export default function Home() {
     const labels: Record<string, string> = {
       heteroseksuel: 'Heteroseksüel',
       homoseksuel: 'Homoseksüel',
-      biseksuel: 'Biseksüel',
-      diger: 'Diğer'
+      biseksuel: 'Biseksüel'
     };
     return labels[value] || value;
   };
@@ -716,7 +714,6 @@ export default function Home() {
                     <option value="">Seçiniz</option>
                     <option value="erkek">Erkek</option>
                     <option value="kadin">Kadın</option>
-                    <option value="diger">Diğer</option>
                   </select>
                 </div>
                 <div>
@@ -731,7 +728,6 @@ export default function Home() {
                     <option value="heteroseksuel">Heteroseksüel</option>
                     <option value="homoseksuel">Homoseksüel</option>
                     <option value="biseksuel">Biseksüel</option>
-                    <option value="diger">Diğer</option>
                   </select>
                 </div>
               </div>
