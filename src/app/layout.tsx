@@ -36,27 +36,27 @@ export default function RootLayout({
           </div>
 
           {/* Global Footer */}
-          <footer className="py-8 px-4 border-t border-white/10 mt-auto">
-            <div className="max-w-lg mx-auto flex flex-col items-center gap-6">
+          <footer className="py-6 px-4 border-t border-white/10 bg-[#0c0c0c]">
+            <div className="max-w-lg mx-auto flex flex-col items-center gap-4">
               {/* GTAW Logo */}
               <a href="https://forum-tr.gta.world" target="_blank" rel="noopener noreferrer">
                 <img
                   src="https://forum-tr.gta.world/uploads/monthly_2025_02/logo.png.3fe10156c1213bdb8f59cd9bc9e15781.png"
                   alt="GTA World TR"
-                  className="h-10 opacity-70 hover:opacity-100 transition-opacity"
+                  className="h-8 opacity-70 hover:opacity-100 transition-opacity"
                 />
               </a>
 
               {/* Social Links */}
               <div className="flex items-center gap-6">
                 <a
-                  href="https://discord.gg/gtaw"
+                  href="https://discord.gg/gtaworldtr"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-gray-400 hover:text-[#5865F2] transition-colors"
                 >
-                  <i className="fa-brands fa-discord text-2xl"></i>
-                  <span className="text-sm">Discord</span>
+                  <i className="fa-brands fa-discord text-xl"></i>
+                  <span className="text-xs">Discord</span>
                 </a>
                 <a
                   href="https://facebrowser-tr.gta.world"
@@ -64,14 +64,21 @@ export default function RootLayout({
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-gray-400 hover:text-pink-500 transition-colors"
                 >
-                  <i className="fa-solid fa-globe text-2xl"></i>
-                  <span className="text-sm">Facebrowser</span>
+                  <i className="fa-solid fa-globe text-xl"></i>
+                  <span className="text-xs">Facebrowser</span>
                 </a>
               </div>
 
-              <p className="text-gray-500 text-xs text-center">
-                © 2026 MatchUp - GTA World TR
-              </p>
+              {/* Copyright and Powered by */}
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-gray-500 text-xs">
+                  © 2026 MatchUp - GTA World TR
+                </p>
+                <p className="text-xs">
+                  <span className="text-gray-500">Powered by </span>
+                  <span className="text-white font-semibold" style={{ textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)' }}>Eira</span>
+                </p>
+              </div>
             </div>
           </footer>
         </Providers>
