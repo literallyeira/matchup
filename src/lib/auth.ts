@@ -70,18 +70,21 @@ export const authOptions: NextAuthOptions = {
                             client_secret: provider.clientSecret ? 'present' : 'missing',
                         });
 
+                        const credentials = Buffer.from(
+                            `${provider.clientId}:${provider.clientSecret}`
+                        ).toString('base64');
+
                         const response = await axios.post(
                             'https://ucp-tr.gta.world/oauth/token',
                             new URLSearchParams({
                                 grant_type: 'authorization_code',
                                 code: params.code as string,
                                 redirect_uri: params.redirect_uri as string,
-                                client_id: provider.clientId as string,
-                                client_secret: provider.clientSecret as string,
                             }),
                             {
                                 headers: {
                                     'Content-Type': 'application/x-www-form-urlencoded',
+                                    'Authorization': `Basic ${credentials}`,
                                 },
                             }
                         );
