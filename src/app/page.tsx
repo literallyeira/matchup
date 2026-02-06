@@ -16,7 +16,6 @@ interface MatchedPerson {
   first_name: string;
   last_name: string;
   age: number;
-  weight: number;
   gender: string;
   sexual_preference: string;
   phone: string;
@@ -62,7 +61,6 @@ export default function Home() {
     firstName: '',
     lastName: '',
     age: '',
-    weight: '',
     gender: '',
     sexualPreference: '',
     phone: '',
@@ -142,7 +140,6 @@ export default function Home() {
       firstName: userApplication.first_name,
       lastName: userApplication.last_name,
       age: userApplication.age.toString(),
-      weight: userApplication.weight.toString(),
       gender: userApplication.gender,
       sexualPreference: userApplication.sexual_preference,
       phone: userApplication.phone,
@@ -512,10 +509,7 @@ export default function Home() {
                           <i className="fa-solid fa-cake-candles mr-1 text-[var(--matchup-primary)]"></i>
                           {match.matchedWith.age} yaş
                         </span>
-                        <span className="px-3 py-1 rounded-full bg-[var(--matchup-bg-input)] text-sm">
-                          <i className="fa-solid fa-weight-scale mr-1 text-[var(--matchup-primary)]"></i>
-                          {match.matchedWith.weight} kg
-                        </span>
+
                         <span className="px-3 py-1 rounded-full bg-[var(--matchup-bg-input)] text-sm">
                           <i className="fa-solid fa-venus-mars mr-1 text-[var(--matchup-primary)]"></i>
                           {getGenderLabel(match.matchedWith.gender)}
@@ -642,8 +636,8 @@ export default function Home() {
 
 
 
-              {/* Age & Weight */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Age */}
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="form-label">Yaş</label>
                   <input
@@ -654,19 +648,6 @@ export default function Home() {
                     max="99"
                     value={formData.age}
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Kilo (kg)</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    placeholder="65"
-                    min="30"
-                    max="300"
-                    value={formData.weight}
-                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                     required
                   />
                 </div>

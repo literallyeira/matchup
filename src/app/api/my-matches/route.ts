@@ -40,11 +40,11 @@ export async function GET(request: Request) {
         application_1_id,
         application_2_id,
         application_1:applications!matches_application_1_id_fkey(
-          id, first_name, last_name, age, weight, gender, sexual_preference,
+          id, first_name, last_name, age, gender, sexual_preference,
           phone, facebrowser, description, photo_url, character_name
         ),
         application_2:applications!matches_application_2_id_fkey(
-          id, first_name, last_name, age, weight, gender, sexual_preference,
+          id, first_name, last_name, age, gender, sexual_preference,
           phone, facebrowser, description, photo_url, character_name
         )
       `)

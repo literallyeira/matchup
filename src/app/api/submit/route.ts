@@ -18,13 +18,13 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
 
         const {
-            firstName, lastName, age, weight, gender, sexualPreference,
+            firstName, lastName, age, gender, sexualPreference,
             phone, facebrowser, description, photoUrl,
             characterId, characterName
         } = body;
 
         // Validate required fields
-        if (!firstName || !lastName || !age || !weight || !gender || !sexualPreference || !phone || !facebrowser || !description || !photoUrl) {
+        if (!firstName || !lastName || !age || !gender || !sexualPreference || !phone || !facebrowser || !description || !photoUrl) {
             return NextResponse.json(
                 { error: 'Tüm alanlar doldurulmalıdır!' },
                 { status: 400 }
@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
                 first_name: firstName,
                 last_name: lastName,
                 age: parseInt(age),
-                weight: parseInt(weight),
                 gender,
                 sexual_preference: sexualPreference,
                 phone,

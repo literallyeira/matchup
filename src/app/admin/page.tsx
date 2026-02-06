@@ -694,10 +694,7 @@ export default function AdminPage() {
                                                             <span className="text-[var(--matchup-text-muted)] text-sm">Yaş</span>
                                                             <p className="font-semibold">{app.age}</p>
                                                         </div>
-                                                        <div>
-                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Kilo</span>
-                                                            <p className="font-semibold">{app.weight} kg</p>
-                                                        </div>
+
                                                         <div>
                                                             <span className="text-[var(--matchup-text-muted)] text-sm">Cinsiyet</span>
                                                             <p className="font-semibold">{getGenderLabel(app.gender)}</p>

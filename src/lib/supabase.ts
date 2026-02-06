@@ -10,7 +10,6 @@ export interface Application {
   first_name: string
   last_name: string
   age: number
-  weight: number
   gender: string
   sexual_preference: string
   phone: string
