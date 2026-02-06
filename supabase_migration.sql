@@ -5,7 +5,13 @@
 ALTER TABLE applications 
 ADD COLUMN IF NOT EXISTS gtaw_user_id INTEGER,
 ADD COLUMN IF NOT EXISTS character_id INTEGER,
-ADD COLUMN IF NOT EXISTS character_name TEXT;
+ADD COLUMN IF NOT EXISTS character_name TEXT,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- 1.1 Benzersizlik kuralı ekle (Upsert için gerekli)
+-- Önce varsa temizlik
+-- DELETE FROM applications a USING applications b WHERE a.id > b.id AND a.gtaw_user_id = b.gtaw_user_id AND a.character_id = b.character_id;
+-- SQL: ALTER TABLE applications ADD CONSTRAINT unique_user_character UNIQUE (gtaw_user_id, character_id);
 
 -- 2. Matches tablosu oluştur
 CREATE TABLE IF NOT EXISTS matches (

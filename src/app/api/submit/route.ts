@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         if (upsertError) {
             console.error('Upsert error:', upsertError);
             return NextResponse.json(
-                { error: 'Başvuru kaydedilirken hata oluştu!' },
+                { error: `Başvuru kaydedilirken hata oluştu: ${upsertError.message}` },
                 { status: 500 }
             );
         }
