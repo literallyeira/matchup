@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   keywords: "çöpçatanlık, eşleşme, tanışma, aşk, matchup",
   icons: {
     icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
   openGraph: {
     title: "MatchUp",
