@@ -14,6 +14,8 @@ export async function GET(request: Request) {
             .from('matches')
             .select(`
         id,
+        application_1_id,
+        application_2_id,
         created_at,
         created_by,
         application_1:applications!matches_application_1_id_fkey(
