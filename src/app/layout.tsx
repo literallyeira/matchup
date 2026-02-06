@@ -29,48 +29,52 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
       </head>
-      <body className="antialiased min-h-screen pb-20">
+      <body className="antialiased min-h-screen flex flex-col">
         <Providers>
-          <div className="w-full">
+          <div className="flex-1 w-full">
             {children}
           </div>
 
           {/* Global Footer */}
-          <footer className="fixed bottom-0 left-0 w-full py-4 px-6 border-t border-white/5 bg-[#0c0c0c]/95 backdrop-blur-sm z-50">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-              {/* Logo */}
-              <a href="https://forum-tr.gta.world" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                <img
-                  src="https://forum-tr.gta.world/uploads/monthly_2025_02/logo.png.3fe10156c1213bdb8f59cd9bc9e15781.png"
-                  alt="GTA World TR"
-                  className="h-6 opacity-70"
-                />
-              </a>
+          <footer className="w-full py-6 px-6 border-t border-white/5 bg-[#0c0c0c]">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs">
 
-              {/* Links */}
-              <div className="flex items-center gap-8">
-                <a
-                  href="https://discord.gg/gtaworldtr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-500 hover:text-[#5865F2] transition-colors"
-                >
-                  <i className="fa-brands fa-discord text-lg"></i>
-                  <span>Discord</span>
+              {/* Left Side: Logo & Links */}
+              <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
+                {/* Logo */}
+                <a href="https://forum-tr.gta.world" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+                  <img
+                    src="https://forum-tr.gta.world/uploads/monthly_2025_02/logo.png.3fe10156c1213bdb8f59cd9bc9e15781.png"
+                    alt="GTA World TR"
+                    className="h-6 opacity-70"
+                  />
                 </a>
-                <a
-                  href="https://facebrowser-tr.gta.world"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-500 hover:text-pink-500 transition-colors"
-                >
-                  <i className="fa-solid fa-globe text-lg"></i>
-                  <span>Facebrowser</span>
-                </a>
+
+                {/* Links */}
+                <div className="flex items-center gap-6">
+                  <a
+                    href="https://discord.gg/gtaworldtr"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-gray-500 hover:text-[#5865F2] transition-colors"
+                  >
+                    <i className="fa-brands fa-discord text-lg"></i>
+                    <span>Discord</span>
+                  </a>
+                  <a
+                    href="https://facebrowser-tr.gta.world"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-gray-500 hover:text-pink-500 transition-colors"
+                  >
+                    <i className="fa-solid fa-globe text-lg"></i>
+                    <span>Facebrowser</span>
+                  </a>
+                </div>
               </div>
 
-              {/* Copyright & Powered By */}
-              <div className="flex flex-col md:flex-row items-center gap-1 md:gap-4 text-gray-600">
+              {/* Right Side: Copyright & Powered By */}
+              <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 text-gray-600">
                 <p>© 2026 MatchUp</p>
                 <div className="hidden md:block w-1 h-1 bg-gray-800 rounded-full"></div>
                 <p>
