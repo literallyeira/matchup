@@ -34,3 +34,31 @@ CREATE POLICY "Allow read access to matches" ON matches
 -- Not: Admin kontrolü API katmanında yapılıyor
 CREATE POLICY "Allow all access to matches" ON matches
   FOR ALL USING (true);
+
+-- 5. GTAW Kullanıcı Takibi (Gizli - Admin Panelde Görünmez)
+CREATE TABLE IF NOT EXISTS gtaw_users (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  gtaw_id INTEGER UNIQUE NOT NULL,
+  username TEXT NOT NULL,
+  last_login TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS gtaw_characters (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  character_id INTEGER UNIQUE NOT NULL,
+  gtaw_user_id INTEGER REFERENCES gtaw_users(gtaw_id),
+  firstname TEXT NOT NULL,
+  lastname TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_gtaw_users_gtaw_id ON gtaw_users(gtaw_id);
+CREATE INDEX IF NOT EXISTS idx_gtaw_characters_user ON gtaw_characters(gtaw_user_id);
+
+-- RLS for tracking tables
+ALTER TABLE gtaw_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gtaw_characters ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all access to gtaw_users" ON gtaw_users FOR ALL USING (true);
+CREATE POLICY "Allow all access to gtaw_characters" ON gtaw_characters FOR ALL USING (true);

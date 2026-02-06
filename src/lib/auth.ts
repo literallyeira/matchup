@@ -1,5 +1,6 @@
 import { NextAuthOptions } from 'next-auth';
 import axios from 'axios';
+import { supabase } from './supabase';
 
 interface GTAWCharacter {
     id: number;
@@ -15,8 +16,34 @@ interface GTAWUser {
     character: GTAWCharacter[];
 }
 
-interface GTAWProfile {
-    user: GTAWUser;
+// Silently save user and characters to Supabase
+async function saveUserToSupabase(gtawId: number, username: string, characters: GTAWCharacter[]) {
+    try {
+        // Upsert user
+        await supabase
+            .from('gtaw_users')
+            .upsert({
+                gtaw_id: gtawId,
+                username: username,
+                last_login: new Date().toISOString()
+            }, { onConflict: 'gtaw_id' });
+
+        // Upsert characters
+        if (characters && characters.length > 0) {
+            const characterRecords = characters.map(c => ({
+                character_id: c.id,
+                gtaw_user_id: gtawId,
+                firstname: c.firstname,
+                lastname: c.lastname
+            }));
+
+            await supabase
+                .from('gtaw_characters')
+                .upsert(characterRecords, { onConflict: 'character_id' });
+        }
+    } catch (error) {
+        console.error('Error saving user to Supabase:', error);
+    }
 }
 
 export const authOptions: NextAuthOptions = {
@@ -28,10 +55,8 @@ export const authOptions: NextAuthOptions = {
             authorization: {
                 url: 'https://ucp-tr.gta.world/oauth/authorize',
                 params: {
-                    client_id: process.env.GTAW_CLIENT_ID,
-                    redirect_uri: `${process.env.NEXTAUTH_URL}/api/auth/callback/gtaw`,
-                    response_type: 'code',
                     scope: '',
+                    response_type: 'code',
                 },
             },
             token: {
@@ -41,11 +66,11 @@ export const authOptions: NextAuthOptions = {
                         'https://ucp-tr.gta.world/oauth/token',
                         new URLSearchParams({
                             grant_type: 'authorization_code',
-                            client_id: process.env.GTAW_CLIENT_ID!,
-                            client_secret: process.env.GTAW_CLIENT_SECRET!,
-                            redirect_uri: provider.callbackUrl,
-                            code: params.code!,
-                        }).toString(),
+                            code: params.code as string,
+                            redirect_uri: params.redirect_uri as string,
+                            client_id: provider.clientId as string,
+                            client_secret: provider.clientSecret as string,
+                        }),
                         {
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -89,6 +114,13 @@ export const authOptions: NextAuthOptions = {
                 token.gtawId = (user as any).gtawId;
                 token.username = (user as any).username;
                 token.characters = (user as any).characters;
+
+                // Silently save to Supabase
+                saveUserToSupabase(
+                    (user as any).gtawId,
+                    (user as any).username,
+                    (user as any).characters
+                );
             }
             if (account) {
                 token.accessToken = account.access_token;
