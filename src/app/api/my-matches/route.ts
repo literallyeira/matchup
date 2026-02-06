@@ -22,7 +22,7 @@ export async function GET(request: Request) {
         // First, find the user's application for this character
         const { data: myApplication, error: appError } = await supabase
             .from('applications')
-            .select('id')
+            .select('*')
             .eq('gtaw_user_id', session.user.gtawId)
             .eq('character_id', parseInt(characterId))
             .single();
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
             matches: transformedMatches,
             hasApplication: true,
-            applicationId: myApplication.id
+            application: myApplication
         });
     } catch (error) {
         console.error('Error:', error);

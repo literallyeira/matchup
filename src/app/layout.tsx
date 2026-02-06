@@ -74,10 +74,8 @@ export default function RootLayout({
                   </div>
                 </div>
 
-                {/* Disclaimer Text */}
                 <div className="text-gray-600 text-[10px] md:text-left text-center space-y-1">
-                  <p>(( Yeni kurallar gereği, lütfen GTAW hesabınızla giriş yapın. GTAW kurallarını okuyun. ))</p>
-                  <p>(( Bu resmi bir GTAW web sitesi değildir. ))</p>
+                  <p>(( Matchup resmi bir GTAW web sitesi değildir, üçüncü parti bir yazılımdır. ))</p>
                 </div>
               </div>
 

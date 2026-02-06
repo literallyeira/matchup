@@ -49,6 +49,7 @@ export default function Home() {
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [hasApplication, setHasApplication] = useState(false);
+  const [userApplication, setUserApplication] = useState<MatchedPerson | null>(null);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -114,6 +115,7 @@ export default function Home() {
         await new Promise(r => setTimeout(r, 500));
         setMatches([]);
         setHasApplication(false);
+        setUserApplication(null);
         setShowForm(true);
         setIsLoadingMatches(false);
         return;
@@ -124,12 +126,31 @@ export default function Home() {
 
       setMatches(data.matches || []);
       setHasApplication(data.hasApplication || false);
+      setUserApplication(data.application || null);
       setShowForm(!data.hasApplication);
     } catch (error) {
       console.error('Error fetching matches:', error);
     } finally {
       setIsLoadingMatches(false);
     }
+  };
+
+  const startEditing = () => {
+    if (!userApplication) return;
+
+    setFormData({
+      firstName: userApplication.first_name,
+      lastName: userApplication.last_name,
+      age: userApplication.age.toString(),
+      weight: userApplication.weight.toString(),
+      gender: userApplication.gender,
+      sexualPreference: userApplication.sexual_preference,
+      phone: userApplication.phone,
+      facebrowser: userApplication.facebrowser,
+      description: userApplication.description,
+      photoUrl: userApplication.photo_url
+    });
+    setShowForm(true);
   };
 
   const rejectMatch = async (matchId: string, myApplicationId: string, matchedApplicationId: string) => {
@@ -176,18 +197,6 @@ export default function Home() {
       if (testMode) {
         await new Promise(r => setTimeout(r, 1000));
         showToast('(TEST) Başvurunuz başarıyla gönderildi!', 'success');
-        setFormData({
-          firstName: '',
-          lastName: '',
-          age: '',
-          weight: '',
-          gender: '',
-          sexualPreference: '',
-          phone: '',
-          facebrowser: '',
-          description: '',
-          photoUrl: ''
-        });
         setHasApplication(true);
         setShowForm(false);
         setIsSubmitting(false);
@@ -209,20 +218,8 @@ export default function Home() {
       const result = await response.json();
 
       if (response.ok) {
-        showToast('Başvurunuz başarıyla gönderildi!', 'success');
-        setFormData({
-          firstName: '',
-          lastName: '',
-          age: '',
-          weight: '',
-          gender: '',
-          sexualPreference: '',
-          phone: '',
-          facebrowser: '',
-          description: '',
-          photoUrl: ''
-        });
-        // Refresh matches
+        showToast(hasApplication ? 'Profiliniz güncellendi!' : 'Başvurunuz başarıyla gönderildi!', 'success');
+        // Refresh everything
         fetchMatches();
       } else {
         showToast(result.error || 'Bir hata oluştu!', 'error');
@@ -445,20 +442,34 @@ export default function Home() {
             <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto"></div>
             <p className="mt-4 text-[var(--matchup-text-muted)]">Yükleniyor...</p>
           </div>
-        ) : hasApplication ? (
+        ) : hasApplication && !showForm ? (
           <>
-            {/* Matches Section */}
+            {/* Matches Section or Profile Header */}
+            <div className="card mb-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
+              <div className="text-center md:text-left">
+                <h2 className="text-2xl font-bold">
+                  {matches.length > 0 ? (
+                    <><i className="fa-solid fa-heart text-[var(--matchup-primary)] mr-2"></i>Eşleşmeleriniz</>
+                  ) : (
+                    <>Profilin Hazır! ✨</>
+                  )}
+                </h2>
+                <p className="text-[var(--matchup-text-muted)]">
+                  {matches.length > 0 ? `${matches.length} kişi ile eşleştiniz!` : 'Henüz bir eşleşme yok, takipte kal!'}
+                </p>
+              </div>
+              <button
+                onClick={startEditing}
+                className="btn-secondary flex items-center gap-2 whitespace-nowrap"
+              >
+                <i className="fa-solid fa-user-pen"></i>
+                Profilimi Düzenle
+              </button>
+            </div>
+
+            {/* Matches List */}
             {matches.length > 0 ? (
               <div className="space-y-6 animate-fade-in">
-                <div className="card text-center">
-                  <h2 className="text-2xl font-bold mb-2">
-                    <i className="fa-solid fa-heart text-[var(--matchup-primary)] mr-2"></i>
-                    Eşleşmeleriniz
-                  </h2>
-                  <p className="text-[var(--matchup-text-muted)]">
-                    {matches.length} kişi ile eşleştiniz!
-                  </p>
-                </div>
 
                 {matches.map((match, index) => (
                   <div
@@ -599,7 +610,18 @@ export default function Home() {
         ) : (
           /* Application Form */
           <div className="card animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <h2 className="text-2xl font-bold text-center mb-8">Başvuru Formu</h2>
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold">{hasApplication ? 'Profili Düzenle' : 'Başvuru Formu'}</h2>
+              {hasApplication && (
+                <button
+                  onClick={() => setShowForm(false)}
+                  className="text-[var(--matchup-text-muted)] hover:text-white transition-colors"
+                >
+                  <i className="fa-solid fa-xmark mr-1"></i>
+                  Vazgeç
+                </button>
+              )}
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Photo URL */}

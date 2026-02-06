@@ -46,25 +46,10 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check if this character already has an application
-        const { data: existingApp } = await supabase
+        // Create or Update application (upsert based on gtaw_user_id and character_id)
+        const { error: upsertError } = await supabase
             .from('applications')
-            .select('id')
-            .eq('gtaw_user_id', session.user.gtawId)
-            .eq('character_id', characterId)
-            .single();
-
-        if (existingApp) {
-            return NextResponse.json(
-                { error: 'Bu karakter için zaten başvuru mevcut!' },
-                { status: 400 }
-            );
-        }
-
-        // Insert into database with GTAW info
-        const { error: insertError } = await supabase
-            .from('applications')
-            .insert({
+            .upsert({
                 first_name: firstName,
                 last_name: lastName,
                 age: parseInt(age),
@@ -77,11 +62,14 @@ export async function POST(request: NextRequest) {
                 photo_url: photoUrl,
                 gtaw_user_id: session.user.gtawId,
                 character_id: characterId,
-                character_name: characterName
+                character_name: characterName,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'gtaw_user_id,character_id'
             });
 
-        if (insertError) {
-            console.error('Insert error:', insertError);
+        if (upsertError) {
+            console.error('Upsert error:', upsertError);
             return NextResponse.json(
                 { error: 'Başvuru kaydedilirken hata oluştu!' },
                 { status: 500 }
