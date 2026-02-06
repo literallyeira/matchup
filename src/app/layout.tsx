@@ -36,40 +36,48 @@ export default function RootLayout({
           </div>
 
           {/* Global Footer */}
-          <footer className="w-full py-6 px-6 border-t border-white/5 bg-[#0c0c0c]">
+          <footer className="w-full py-8 px-6 border-t border-white/5 bg-[#0c0c0c]/80 backdrop-blur-md">
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs">
 
-              {/* Left Side: Logo & Links */}
-              <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
-                {/* Logo */}
-                <a href="https://forum-tr.gta.world" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                  <img
-                    src="https://forum-tr.gta.world/uploads/monthly_2025_02/logo.png.3fe10156c1213bdb8f59cd9bc9e15781.png"
-                    alt="GTA World TR"
-                    className="h-6 opacity-70"
-                  />
-                </a>
+              {/* Left Side: Logo, Links & Disclaimer */}
+              <div className="flex flex-col items-center md:items-start gap-4">
+                <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
+                  {/* Logo */}
+                  <a href="https://forum-tr.gta.world" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+                    <img
+                      src="https://forum-tr.gta.world/uploads/monthly_2025_02/logo.png.3fe10156c1213bdb8f59cd9bc9e15781.png"
+                      alt="GTA World TR"
+                      className="h-6 opacity-70"
+                    />
+                  </a>
 
-                {/* Links */}
-                <div className="flex items-center gap-6">
-                  <a
-                    href="https://discord.gg/gtaworldtr"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-gray-500 hover:text-[#5865F2] transition-colors"
-                  >
-                    <i className="fa-brands fa-discord text-lg"></i>
-                    <span>Discord</span>
-                  </a>
-                  <a
-                    href="https://facebrowser-tr.gta.world"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-gray-500 hover:text-pink-500 transition-colors"
-                  >
-                    <i className="fa-solid fa-globe text-lg"></i>
-                    <span>Facebrowser</span>
-                  </a>
+                  {/* Links */}
+                  <div className="flex items-center gap-6">
+                    <a
+                      href="https://discord.gg/gtaworldtr"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-gray-500 hover:text-[#5865F2] transition-colors"
+                    >
+                      <i className="fa-brands fa-discord text-lg"></i>
+                      <span>Discord</span>
+                    </a>
+                    <a
+                      href="https://facebrowser-tr.gta.world"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-gray-500 hover:text-pink-500 transition-colors"
+                    >
+                      <i className="fa-solid fa-globe text-lg"></i>
+                      <span>Facebrowser</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Disclaimer Text */}
+                <div className="text-gray-600 text-[10px] md:text-left text-center space-y-1">
+                  <p>(( Yeni kurallar gereği, lütfen GTAW hesabınızla giriş yapın. GTAW kurallarını okuyun. ))</p>
+                  <p>(( Bu resmi bir GTAW web sitesi değildir. ))</p>
                 </div>
               </div>
 
