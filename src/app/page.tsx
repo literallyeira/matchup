@@ -262,7 +262,7 @@ export default function Home() {
   // Loading state
   if (effectiveStatus === 'loading') {
     return (
-      <main className="min-h-screen flex items-center justify-center">
+      <main className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto"></div>
           <p className="mt-4 text-[var(--matchup-text-muted)]">Yükleniyor...</p>
@@ -274,7 +274,7 @@ export default function Home() {
   // Not logged in - show login button
   if (!effectiveSession) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4">
+      <main className="flex items-center justify-center px-4 py-20">
         <div className="card max-w-md w-full text-center animate-fade-in">
           <Image
             src="/logo.png"
@@ -330,7 +330,7 @@ export default function Home() {
     const characters = testMode ? TEST_MODE_USER.characters : (effectiveSession.user.characters || []);
 
     return (
-      <main className="min-h-screen py-12 px-4">
+      <main className="py-12 px-4">
         <div className="max-w-lg mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8 animate-fade-in">
