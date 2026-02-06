@@ -29,14 +29,14 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
       </head>
-      <body className="antialiased min-h-screen flex flex-col">
+      <body className="antialiased min-h-screen pb-40">
         <Providers>
-          <div className="flex-1">
+          <div className="w-full">
             {children}
           </div>
 
           {/* Global Footer */}
-          <footer className="py-6 px-4 border-t border-white/10 bg-[#0c0c0c]">
+          <footer className="fixed bottom-0 left-0 w-full py-6 px-4 border-t border-white/10 bg-[#0c0c0c] z-50">
             <div className="max-w-lg mx-auto flex flex-col items-center gap-4">
               {/* GTAW Logo */}
               <a href="https://forum-tr.gta.world" target="_blank" rel="noopener noreferrer">
@@ -75,8 +75,8 @@ export default function RootLayout({
                   © 2026 MatchUp - GTA World TR
                 </p>
                 <p className="text-xs">
-                  <span className="text-gray-500">Powered by </span>
-                  <span className="text-white font-semibold" style={{ textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)' }}>Eira</span>
+                  <span className="text-gray-500">powered by </span>
+                  <span className="text-white font-semibold" style={{ textShadow: '0 0 5px rgba(255,255,255,0.5), 0 0 10px rgba(255,255,255,0.3)' }}>eira</span>
                 </p>
               </div>
             </div>

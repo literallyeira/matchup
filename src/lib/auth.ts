@@ -32,11 +32,11 @@ async function saveUserToSupabase(user: GTAWUser) {
             await supabase
                 .from('gtaw_characters')
                 .upsert({
-                    id: char.id,
+                    character_id: char.id,
                     gtaw_user_id: user.id,
                     firstname: char.firstname,
                     lastname: char.lastname
-                }, { onConflict: 'id' });
+                }, { onConflict: 'character_id' });
         }
     } catch (error) {
         console.error('Error saving user to Supabase:', error);
