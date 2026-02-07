@@ -207,6 +207,8 @@ export default function Home() {
         },
         body: JSON.stringify({
           ...formData,
+          firstName: selectedCharacter.firstname,
+          lastName: selectedCharacter.lastname,
           characterId: selectedCharacter.id,
           characterName: `${selectedCharacter.firstname} ${selectedCharacter.lastname}`
         }),
