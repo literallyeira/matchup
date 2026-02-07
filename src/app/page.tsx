@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface Character {
   id: number;
@@ -278,14 +279,16 @@ export default function Home() {
     return (
       <main className="flex items-center justify-center px-4 py-20">
         <div className="card max-w-md w-full text-center animate-fade-in">
-          <Image
-            src="/matchup_logo.png"
-            alt="MatchUp Logo"
-            width={220}
-            height={60}
-            className="mx-auto mb-6"
-            priority
-          />
+          <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
+            <Image
+              src="/matchup_logo.png"
+              alt="MatchUp Logo"
+              width={220}
+              height={60}
+              className="mx-auto mb-6"
+              priority
+            />
+          </Link>
           <p className="text-[var(--matchup-text-muted)] text-lg mb-8">
             <i className="fa-solid fa-heart text-[var(--matchup-primary)] mr-2"></i>
             Hayatının aşkını bulmaya bir adım kaldı!

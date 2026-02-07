@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface Log {
     id: string;
@@ -162,13 +163,15 @@ export default function SuperEiraPage() {
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center justify-between mb-8 animate-fade-in">
                     <div className="flex items-center gap-4">
-                        <Image
-                            src="/matchup_logo.png"
-                            alt="MatchUp Logo"
-                            width={140}
-                            height={40}
-                            priority
-                        />
+                        <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
+                            <Image
+                                src="/matchup_logo.png"
+                                alt="MatchUp Logo"
+                                width={140}
+                                height={40}
+                                priority
+                            />
+                        </Link>
                         <h1 className="text-xl font-bold border-l border-white/20 pl-4 ml-2">Super Logs</h1>
                     </div>
                     <button
