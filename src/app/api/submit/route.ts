@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
 
         const {
-            firstName, lastName, age, gender, sexualPreference,
+            firstName, lastName, age, weight, gender, sexualPreference,
             phone, facebrowser, description, photoUrl,
             characterId, characterName
         } = body;
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
                 first_name: firstName,
                 last_name: lastName,
                 age: parseInt(age),
+                weight: weight ? parseInt(weight) : 0,
                 gender,
                 sexual_preference: sexualPreference,
                 phone,

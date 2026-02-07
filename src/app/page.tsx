@@ -16,6 +16,7 @@ interface MatchedPerson {
   first_name: string;
   last_name: string;
   age: number;
+  weight: number;
   gender: string;
   sexual_preference: string;
   phone: string;
@@ -61,6 +62,7 @@ export default function Home() {
     firstName: '',
     lastName: '',
     age: '',
+    weight: '',
     gender: '',
     sexualPreference: '',
     phone: '',
@@ -140,6 +142,7 @@ export default function Home() {
       firstName: userApplication.first_name,
       lastName: userApplication.last_name,
       age: userApplication.age.toString(),
+      weight: (userApplication.weight || '').toString(),
       gender: userApplication.gender,
       sexualPreference: userApplication.sexual_preference,
       phone: userApplication.phone,
@@ -638,8 +641,8 @@ export default function Home() {
 
 
 
-              {/* Age */}
-              <div className="grid grid-cols-1 gap-4">
+              {/* Age & Weight */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Yaş</label>
                   <input
@@ -651,6 +654,18 @@ export default function Home() {
                     value={formData.age}
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                     required
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Kilo (kg)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="75"
+                    min="40"
+                    max="200"
+                    value={formData.weight}
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                   />
                 </div>
               </div>
