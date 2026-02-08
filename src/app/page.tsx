@@ -487,7 +487,7 @@ export default function Home() {
         </div>
 
         {activeTab === 'discover' && (
-          <div className="min-h-[420px] flex flex-col items-center justify-center">
+          <div className="min-h-[500px] flex flex-col items-center justify-center">
             {isLoadingPossible ? (
               <div className="text-center py-12">
                 <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto" />
@@ -502,17 +502,17 @@ export default function Home() {
               </div>
             ) : (
               <>
-                <div className="card p-0 overflow-hidden w-full animate-fade-in" style={{ minHeight: 380 }}>
-                  <div className="relative h-72 w-full">
+                <div className="card p-0 overflow-hidden w-full animate-fade-in">
+                  <div className="relative w-full aspect-[4/5] overflow-hidden">
                     {currentCard.photo_url ? (
-                      <img src={currentCard.photo_url} alt="" className="w-full h-full object-cover" />
+                      <img src={currentCard.photo_url} alt="" className="w-full h-full object-cover object-top" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-[var(--matchup-primary)] to-purple-600 flex items-center justify-center">
                         <i className="fa-solid fa-user text-6xl text-white/50" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 pt-16 pb-4 px-4">
                       <h3 className="text-2xl font-bold text-white drop-shadow-lg">
                         {currentCard.first_name} {currentCard.last_name}
                       </h3>
@@ -561,17 +561,17 @@ export default function Home() {
             ) : (
               matches.map((match) => (
                 <div key={match.id} className="card p-0 overflow-hidden animate-fade-in">
-                  <div className="relative h-48">
+                  <div className="relative w-full aspect-[4/5] overflow-hidden">
                     {match.matchedWith.photo_url ? (
-                      <img src={match.matchedWith.photo_url} alt="" className="w-full h-full object-cover" />
+                      <img src={match.matchedWith.photo_url} alt="" className="w-full h-full object-cover object-top" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-[var(--matchup-primary)] to-purple-600 flex items-center justify-center">
                         <i className="fa-solid fa-user text-4xl text-white/50" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                    <div className="absolute bottom-3 left-3 right-3">
-                      <h3 className="text-xl font-bold text-white">{match.matchedWith.first_name} {match.matchedWith.last_name}</h3>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 pt-12 pb-3 px-4">
+                      <h3 className="text-xl font-bold text-white drop-shadow-lg">{match.matchedWith.first_name} {match.matchedWith.last_name}</h3>
                       <p className="text-white/90 text-xs">{match.matchedWith.age} · {getGenderLabel(match.matchedWith.gender)}</p>
                     </div>
                   </div>
