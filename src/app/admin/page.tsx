@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
@@ -17,19 +17,14 @@ export default function AdminPage() {
     const [password, setPassword] = useState('');
     const [applications, setApplications] = useState<Application[]>([]);
     const [matches, setMatches] = useState<MatchWithApps[]>([]);
-    const [rejectedPairs, setRejectedPairs] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'suggestions'>('applications');
+    const [activeTab, setActiveTab] = useState<'applications' | 'matches'>('applications');
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
     const [filterPreference, setFilterPreference] = useState('');
-
-    // Matching state
-    const [selectedForMatch, setSelectedForMatch] = useState<string[]>([]);
-    const [isCreatingMatch, setIsCreatingMatch] = useState(false);
 
     // Test mode state
     const [testMode, setTestMode] = useState(false);
@@ -113,27 +108,6 @@ export default function AdminPage() {
         }
     };
 
-    const fetchRejectedPairs = async (savedPassword?: string) => {
-        try {
-            const response = await fetch('/api/rejected-matches', {
-                headers: {
-                    'Authorization': savedPassword || password
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const pairs = new Set<string>();
-                data.forEach((r: { application_1_id: string; application_2_id: string }) => {
-                    pairs.add([r.application_1_id, r.application_2_id].sort().join('-'));
-                });
-                setRejectedPairs(pairs);
-            }
-        } catch {
-            console.error('Fetch rejected error');
-        }
-    };
-
     const handleDelete = async (id: string) => {
         if (!confirm('Bu başvuruyu silmek istediğinize emin misiniz?')) return;
 
@@ -176,54 +150,6 @@ export default function AdminPage() {
         }
     };
 
-    const handleCreateMatch = async () => {
-        if (selectedForMatch.length !== 2) {
-            alert('Lütfen tam olarak 2 kişi seçin!');
-            return;
-        }
-
-        setIsCreatingMatch(true);
-        try {
-            const response = await fetch('/api/matches', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': password || localStorage.getItem('adminPassword') || '',
-                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
-                },
-                body: JSON.stringify({
-                    application1Id: selectedForMatch[0],
-                    application2Id: selectedForMatch[1]
-                })
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                alert('Eşleştirme başarılı!');
-                setSelectedForMatch([]);
-                fetchMatches();
-            } else {
-                alert(result.error || 'Eşleştirme hatası!');
-            }
-        } catch {
-            alert('Bağlantı hatası!');
-        } finally {
-            setIsCreatingMatch(false);
-        }
-    };
-
-    const toggleSelectForMatch = (id: string) => {
-        if (selectedForMatch.includes(id)) {
-            setSelectedForMatch(selectedForMatch.filter(x => x !== id));
-        } else if (selectedForMatch.length < 2) {
-            setSelectedForMatch([...selectedForMatch, id]);
-        } else {
-            // Replace the first selection
-            setSelectedForMatch([selectedForMatch[1], id]);
-        }
-    };
-
     // Get matches for a specific application
     const getMatchesForApp = (appId: string): Application[] => {
         const matchedApps: Application[] = [];
@@ -242,7 +168,6 @@ export default function AdminPage() {
         setPassword('');
         setApplications([]);
         setMatches([]);
-        setRejectedPairs(new Set());
         localStorage.removeItem('adminPassword');
     };
 
@@ -253,7 +178,6 @@ export default function AdminPage() {
             setIsAuthenticated(true);
             fetchApplications(savedPassword);
             fetchMatches(savedPassword);
-            fetchRejectedPairs(savedPassword);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -293,100 +217,6 @@ export default function AdminPage() {
             biseksuel: 'Biseksüel'
         };
         return labels[value] || value;
-    };
-
-    // Check if two people are compatible
-    const areCompatible = (app1: Application, app2: Application): boolean => {
-        // Already matched?
-        const alreadyMatched = matches.some(m =>
-            (m.application_1_id === app1.id && m.application_2_id === app2.id) ||
-            (m.application_1_id === app2.id && m.application_2_id === app1.id)
-        );
-        if (alreadyMatched) return false;
-
-        // Already rejected?
-        const pairKey = [app1.id, app2.id].sort().join('-');
-        if (rejectedPairs.has(pairKey)) return false;
-
-        const g1 = app1.gender;
-        const g2 = app2.gender;
-        const p1 = app1.sexual_preference;
-        const p2 = app2.sexual_preference;
-
-        // Heterosexual logic
-        if (p1 === 'heteroseksuel' && p2 === 'heteroseksuel') {
-            return (g1 === 'erkek' && g2 === 'kadin') || (g1 === 'kadin' && g2 === 'erkek');
-        }
-
-        // Homosexual logic
-        if (p1 === 'homoseksuel' && p2 === 'homoseksuel') {
-            return g1 === g2;
-        }
-
-        // Bisexual is compatible with anyone who might be interested
-        if (p1 === 'biseksuel') {
-            if (p2 === 'biseksuel') return true;
-            if (p2 === 'heteroseksuel') return (g1 !== g2);
-            if (p2 === 'homoseksuel') return (g1 === g2);
-        }
-        if (p2 === 'biseksuel') {
-            if (p1 === 'heteroseksuel') return (g1 !== g2);
-            if (p1 === 'homoseksuel') return (g1 === g2);
-        }
-
-
-        return false;
-    };
-
-    // Get suggested matches (compatible pairs)
-    const suggestedMatches = useMemo(() => {
-        const suggestions: { app1: Application; app2: Application }[] = [];
-        const seen = new Set<string>();
-
-        for (let i = 0; i < applications.length; i++) {
-            for (let j = i + 1; j < applications.length; j++) {
-                const app1 = applications[i];
-                const app2 = applications[j];
-                const key = [app1.id, app2.id].sort().join('-');
-
-                if (!seen.has(key) && areCompatible(app1, app2)) {
-                    seen.add(key);
-                    suggestions.push({ app1, app2 });
-                }
-            }
-        }
-
-        return suggestions;
-    }, [applications, matches]);
-
-    // Quick match function
-    const quickMatch = async (app1Id: string, app2Id: string) => {
-        setIsCreatingMatch(true);
-        try {
-            const response = await fetch('/api/matches', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': password || localStorage.getItem('adminPassword') || '',
-                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
-                },
-                body: JSON.stringify({
-                    application1Id: app1Id,
-                    application2Id: app2Id
-                })
-            });
-
-            if (response.ok) {
-                fetchMatches();
-            } else {
-                const result = await response.json();
-                alert(result.error || 'Eşleştirme hatası!');
-            }
-        } catch {
-            alert('Bağlantı hatası!');
-        } finally {
-            setIsCreatingMatch(false);
-        }
     };
 
     // Login Screen
@@ -501,16 +331,7 @@ export default function AdminPage() {
                             : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
                             }`}
                     >
-                        <i className="fa-solid fa-users mr-2"></i>Başvurular ({applications.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('suggestions')}
-                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'suggestions'
-                            ? 'bg-green-500 text-white'
-                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
-                            }`}
-                    >
-                        <i className="fa-solid fa-wand-magic-sparkles mr-2"></i>Önerilen ({suggestedMatches.length})
+                        <i className="fa-solid fa-users mr-2"></i>Profiller ({applications.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('matches')}
@@ -525,37 +346,6 @@ export default function AdminPage() {
 
                 {activeTab === 'applications' && (
                     <>
-                        {/* Matching Banner */}
-                        {selectedForMatch.length > 0 && (
-                            <div className="card mb-6 bg-gradient-to-r from-[var(--matchup-primary)] to-pink-600 animate-fade-in">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="font-bold text-white">
-                                            {selectedForMatch.length}/2 Kişi Seçildi
-                                        </h3>
-                                        <p className="text-white/80 text-sm">
-                                            Eşleştirmek için 2 kişi seçin
-                                        </p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={() => setSelectedForMatch([])}
-                                            className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white transition-all"
-                                        >
-                                            Temizle
-                                        </button>
-                                        <button
-                                            onClick={handleCreateMatch}
-                                            disabled={selectedForMatch.length !== 2 || isCreatingMatch}
-                                            className="px-4 py-2 bg-white text-[var(--matchup-primary)] rounded-lg font-semibold hover:bg-white/90 transition-all disabled:opacity-50"
-                                        >
-                                            {isCreatingMatch ? 'Eşleştiriliyor...' : 'Eşleştir'}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {/* Stats */}
                         <div className="card mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
                             <div className="flex items-center justify-between">
@@ -628,28 +418,15 @@ export default function AdminPage() {
                         ) : (
                             <div className="grid gap-6">
                                 {filteredApplications.map((app, index) => {
-                                    const isSelected = selectedForMatch.includes(app.id);
                                     const appMatches = getMatchesForApp(app.id);
 
                                     return (
                                         <div
                                             key={app.id}
-                                            className={`card animate-fade-in cursor-pointer transition-all ${isSelected ? 'ring-2 ring-[var(--matchup-primary)]' : ''
-                                                }`}
+                                            className="card animate-fade-in transition-all"
                                             style={{ animationDelay: `${0.05 * index}s` }}
-                                            onClick={() => toggleSelectForMatch(app.id)}
                                         >
                                             <div className="flex flex-col md:flex-row gap-6">
-                                                {/* Selection Checkbox */}
-                                                <div className="flex items-center">
-                                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
-                                                        ? 'bg-[var(--matchup-primary)] border-[var(--matchup-primary)]'
-                                                        : 'border-[var(--matchup-text-muted)]'
-                                                        }`}>
-                                                        {isSelected && <i className="fa-solid fa-check text-white text-xs"></i>}
-                                                    </div>
-                                                </div>
-
                                                 {/* Photo */}
                                                 <div
                                                     className="w-32 h-32 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer bg-[var(--matchup-bg-input)]"
@@ -750,109 +527,13 @@ export default function AdminPage() {
                     </>
                 )}
 
-                {activeTab === 'suggestions' && (
-                    <div className="space-y-6 animate-fade-in">
-                        <div className="card bg-gradient-to-r from-green-600 to-emerald-600">
-                            <div className="flex items-center gap-3">
-
-                                <div>
-                                    <h2 className="text-xl font-bold">Önerilen Eşleşmeler</h2>
-                                    <p className="text-white/80 text-sm">
-                                        Cinsiyet ve yönelime göre uyumlu kişiler otomatik tespit edildi
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {suggestedMatches.length === 0 ? (
-                            <div className="card text-center py-16">
-                                <i className="fa-solid fa-check-circle text-6xl text-green-500 mb-4"></i>
-                                <p className="text-[var(--matchup-text-muted)] text-lg">
-                                    Tüm uyumlu kişiler eşleştirilmiş!
-                                </p>
-                            </div>
-                        ) : (
-                            suggestedMatches.map(({ app1, app2 }, index) => (
-                                <div
-                                    key={`${app1.id}-${app2.id}`}
-                                    className="card animate-fade-in"
-                                    style={{ animationDelay: `${0.05 * index}s` }}
-                                >
-                                    <div className="flex flex-col md:flex-row items-center gap-4">
-                                        {/* Person 1 */}
-                                        <div className="flex-1 flex items-center gap-4">
-                                            {app1.photo_url && (
-                                                <div
-                                                    className="w-16 h-16 rounded-full overflow-hidden cursor-pointer flex-shrink-0"
-                                                    onClick={() => setSelectedImage(app1.photo_url)}
-                                                >
-                                                    <img src={app1.photo_url} alt="" className="w-full h-full object-cover" />
-                                                </div>
-                                            )}
-                                            <div>
-                                                <p className="font-bold">{app1.first_name} {app1.last_name}</p>
-                                                <div className="flex gap-2 text-sm">
-                                                    <span className="px-2 py-0.5 rounded bg-[var(--matchup-bg-input)]">
-                                                        {getGenderLabel(app1.gender)}
-                                                    </span>
-                                                    <span className="px-2 py-0.5 rounded bg-[var(--matchup-bg-input)]">
-                                                        {getSexualPreferenceLabel(app1.sexual_preference)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Match Icon */}
-                                        <div className="text-3xl text-[var(--matchup-primary)]">
-                                            <i className="fa-solid fa-heart"></i>
-                                        </div>
-
-                                        {/* Person 2 */}
-                                        <div className="flex-1 flex items-center gap-4 md:flex-row-reverse md:text-right">
-                                            {app2.photo_url && (
-                                                <div
-                                                    className="w-16 h-16 rounded-full overflow-hidden cursor-pointer flex-shrink-0"
-                                                    onClick={() => setSelectedImage(app2.photo_url)}
-                                                >
-                                                    <img src={app2.photo_url} alt="" className="w-full h-full object-cover" />
-                                                </div>
-                                            )}
-                                            <div>
-                                                <p className="font-bold">{app2.first_name} {app2.last_name}</p>
-                                                <div className="flex gap-2 text-sm md:justify-end">
-                                                    <span className="px-2 py-0.5 rounded bg-[var(--matchup-bg-input)]">
-                                                        {getGenderLabel(app2.gender)}
-                                                    </span>
-                                                    <span className="px-2 py-0.5 rounded bg-[var(--matchup-bg-input)]">
-                                                        {getSexualPreferenceLabel(app2.sexual_preference)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Quick Match Button */}
-                                        <button
-                                            onClick={() => quickMatch(app1.id, app2.id)}
-                                            disabled={isCreatingMatch}
-                                            className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
-                                        >
-                                            <i className="fa-solid fa-check"></i>
-                                            Eşleştir
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
-
                 {activeTab === 'matches' && (
                     <div className="space-y-6">
                         {matches.length === 0 ? (
                             <div className="card text-center py-16 animate-fade-in">
                                 <i className="fa-solid fa-heart-crack text-6xl text-[var(--matchup-text-muted)] mb-4"></i>
                                 <p className="text-[var(--matchup-text-muted)] text-lg">
-                                    Henüz eşleşme oluşturulmadı
+                                    Henüz karşılıklı like ile eşleşme yok
                                 </p>
                             </div>
                         ) : (

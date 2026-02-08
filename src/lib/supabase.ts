@@ -10,6 +10,7 @@ export interface Application {
   first_name: string
   last_name: string
   age: number
+  weight?: number
   gender: string
   sexual_preference: string
   phone: string
@@ -17,7 +18,6 @@ export interface Application {
   description: string
   photo_url: string
   created_at: string
-  // New fields for GTAW integration
   gtaw_user_id?: number
   character_id?: number
   character_name?: string

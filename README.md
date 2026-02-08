@@ -1,6 +1,6 @@
-# MatchUp - Çöpçatanlık Başvuru Sitesi
+# MatchUp - Tinder Tarzı Eşleşme
 
-Modern, şık çöpçatanlık başvuru formu ve admin paneli.
+GTA World karakterleri için Tinder mantığında çöpçatanlık: uyumlu profilleri keşfet, like/dislike at, **karşılıklı like = eşleşme**.
 
 ![MatchUp Logo](./public/logo.png)
 
@@ -147,13 +147,17 @@ matchup/
 
 ## 💡 Özellikler
 
-- ✅ Modern, responsive tasarım
-- ✅ Fotoğraf yükleme
-- ✅ Admin paneli (şifre korumalı)
-- ✅ Başvuru listeleme & silme
-- ✅ Fotoğraf büyütme (modal)
-- ✅ Vercel uyumlu
-- ✅ Supabase ücretsiz tier
+- ✅ **Keşfet**: Cinsiyet/yönelime göre uyumlu profiller tek tek kart olarak gösterilir
+- ✅ **Like / Dislike**: Beğenmediğin profiller bir daha gösterilmez; beğenirsen like atılır
+- ✅ **Eşleşme**: İki taraf da birbirine like attığında otomatik eşleşme oluşur
+- ✅ **Eşleşmelerim**: Karşılıklı eşleştiğin kişileri görüntüle, iletişim bilgilerine eriş, istersen eşleşmeyi kaldır
+- ✅ Profil oluşturma/düzenleme (fotoğraf linki, yaş, cinsiyet, yönelim, telefon, Facebrowser, açıklama)
+- ✅ Admin paneli: Profilleri ve eşleşmeleri listeleme/silme (eşleşme artık sadece karşılıklı like ile oluşur)
+- ✅ Vercel uyumlu, Supabase ücretsiz tier
+
+### Tinder migration (likes / dislikes)
+
+Mevcut projede Tinder mantığına geçmek için Supabase SQL Editor'da **`supabase_tinder_migration.sql`** dosyasını çalıştır. Bu dosya `likes` ve `dislikes` tablolarını ekler; eşleşmeler artık yalnızca karşılıklı like ile oluşturulur.
 
 ---
 
