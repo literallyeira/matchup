@@ -59,8 +59,11 @@ async function handleBankingCallback(token: string) {
       }
     }
 
+    // Token geçerli = banka ödemeyi onayladı. Order yoksa (çift istek / zaten işlendi) yine success.
     if (!order) {
-      return NextResponse.redirect(new URL(orderId ? '/?payment=error' : '/?payment=success', BASE_URL), REDIRECT_STATUS);
+      const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
+      if (orderId) res.cookies.delete('matchup_pending_order');
+      return res;
     }
 
     if (paymentAmount < (order.amount as number)) {
