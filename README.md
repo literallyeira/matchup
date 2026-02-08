@@ -159,6 +159,10 @@ matchup/
 
 Mevcut projede Tinder mantığına geçmek için Supabase SQL Editor'da **`supabase_tinder_migration.sql`** dosyasını çalıştır. Bu dosya `likes` ve `dislikes` tablolarını ekler; eşleşmeler artık yalnızca karşılıklı like ile oluşturulur.
 
+### Test için verileri sıfırlama
+
+Like, dislike ve eşleşmeleri temizleyip baştan denemek için Supabase SQL Editor'da **`supabase_reset_likes_matches.sql`** dosyasını çalıştır. `likes`, `dislikes`, `matches` ve `rejected_matches` tabloları boşaltılır.
+
 ---
 
 ## 📞 Destek

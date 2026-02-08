@@ -134,6 +134,16 @@ export default function Home() {
     if (hasApplication && activeTab === 'discover' && !showForm) fetchPossibleMatches();
   }, [hasApplication, activeTab, showForm, fetchPossibleMatches]);
 
+  // Eşleşmeler sekmesine geçince listeyi anlık güncelle
+  useEffect(() => {
+    if (hasApplication && activeTab === 'matches' && selectedCharacter && !testMode) {
+      fetch(`/api/my-matches?characterId=${selectedCharacter.id}`)
+        .then((res) => res.json())
+        .then((data) => setMatches(data.matches || []))
+        .catch(() => {});
+    }
+  }, [activeTab, hasApplication, selectedCharacter?.id, testMode]);
+
   const handleLike = async (profile: Application) => {
     if (!selectedCharacter || testMode) return;
     setActionPending(profile.id);
