@@ -12,6 +12,7 @@ export interface LimitsInfo {
   remaining: number;
   resetAt: string;
   boostExpiresAt: string | null;
+  subscriptionExpiresAt: string | null;
 }
 
 /** Aktif abonelik tier'ı (süresi dolmuşsa free) */
@@ -23,6 +24,16 @@ export async function getTier(applicationId: string): Promise<Tier> {
     .single();
   if (!data || new Date(data.expires_at) <= new Date()) return 'free';
   return data.tier as 'plus' | 'pro';
+}
+
+export async function getSubscriptionExpiry(applicationId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('subscriptions')
+    .select('expires_at')
+    .eq('application_id', applicationId)
+    .single();
+  if (!data || new Date(data.expires_at) <= new Date()) return null;
+  return data.expires_at;
 }
 
 /** Günlük limit: free 10, plus 20, pro sınırsız */
@@ -98,11 +109,14 @@ export async function getLimitsInfo(applicationId: string): Promise<LimitsInfo> 
     .maybeSingle();
   if (boost?.expires_at) boostExpiresAt = boost.expires_at;
 
+  const subscriptionExpiresAt = await getSubscriptionExpiry(applicationId);
+
   return {
     tier,
     dailyLimit: tier === 'pro' ? 999999 : dailyLimit,
     remaining,
     resetAt: resetAt.toISOString(),
     boostExpiresAt,
+    subscriptionExpiresAt,
   };
 }
