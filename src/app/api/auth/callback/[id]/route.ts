@@ -123,7 +123,15 @@ export async function GET(
   const { searchParams } = new URL(request.url);
 
   if (id.startsWith('banking')) {
-    const token = id === 'banking' ? searchParams.get('token') : id.slice(7);
+    // Token path'te (banking + token) veya query'de token/nxtPid olabilir
+    let token =
+      id.length > 7
+        ? id.slice(7)
+        : searchParams.get('token') ||
+          (() => {
+            const n = searchParams.get('nxtPid');
+            return n ? (n.startsWith('banking') ? n.slice(7) : n) : null;
+          })();
     if (!token) {
       return NextResponse.redirect(new URL('/?payment=error', BASE_URL), 302);
     }
