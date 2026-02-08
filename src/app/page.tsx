@@ -557,8 +557,15 @@ function HomeContent() {
   return (
     <main className="py-8 px-4 pb-24">
       <div className="max-w-md mx-auto">
-        <div className="flex items-center justify-between mb-6 animate-fade-in">
-          <Image src="/matchup_logo.png" alt="MatchUp" width={120} height={34} priority />
+        <div className="flex items-center justify-between mb-4 animate-fade-in">
+          <div className="flex flex-col gap-0.5">
+            <Image src="/matchup_logo.png" alt="MatchUp" width={120} height={34} priority />
+            {selectedCharacter && (
+              <span className="text-[var(--matchup-text-muted)] text-sm">
+                <i className="fa-solid fa-user mr-1" /> {selectedCharacter.firstname} {selectedCharacter.lastname}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {limits && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--matchup-bg-input)] text-sm">
