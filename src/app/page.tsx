@@ -616,34 +616,34 @@ function HomeContent() {
             </div>
           </div>
 
-          {/* Row 2: Üyelik + Limitler (tek satır, kompakt) */}
+          {/* Row 2: Üyelik + Limitler */}
           <div className="flex items-center gap-2 flex-wrap mb-3">
             {/* Üyelik Badge */}
             {limits && limits.tier !== 'free' && (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: `linear-gradient(135deg, ${limits.tier === 'pro' ? 'rgba(139,92,246,0.18)' : 'rgba(236,72,153,0.18)'}, ${limits.tier === 'pro' ? 'rgba(217,70,239,0.18)' : 'rgba(249,115,22,0.18)'})`, border: `1px solid ${limits.tier === 'pro' ? 'rgba(139,92,246,0.35)' : 'rgba(236,72,153,0.35)'}` }}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium"
+                style={{ background: `linear-gradient(135deg, ${limits.tier === 'pro' ? 'rgba(139,92,246,0.15)' : 'rgba(236,72,153,0.15)'}, ${limits.tier === 'pro' ? 'rgba(217,70,239,0.15)' : 'rgba(249,115,22,0.15)'})`, border: `1px solid ${limits.tier === 'pro' ? 'rgba(139,92,246,0.3)' : 'rgba(236,72,153,0.3)'}` }}
               >
-                <i className={`fa-solid ${limits.tier === 'pro' ? 'fa-crown' : 'fa-star'} ${limits.tier === 'pro' ? 'text-violet-400' : 'text-pink-400'}`} style={{ fontSize: '10px' }} />
+                <i className={`fa-solid ${limits.tier === 'pro' ? 'fa-crown' : 'fa-star'} text-xs ${limits.tier === 'pro' ? 'text-violet-400' : 'text-pink-400'}`} />
                 <span>{getTierLabel(limits.tier)}</span>
                 {limits.subscriptionExpiresAt && (
-                  <span className="opacity-70">· {formatTimeLeft(limits.subscriptionExpiresAt)}</span>
+                  <span className="text-xs opacity-75">· {formatTimeLeft(limits.subscriptionExpiresAt)} kaldı</span>
                 )}
               </div>
             )}
 
             {/* Like Counter */}
             {limits && (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] text-xs">
-                <i className="fa-solid fa-heart text-[var(--matchup-primary)]" style={{ fontSize: '10px' }} />
+              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] text-sm">
+                <i className="fa-solid fa-heart text-[var(--matchup-primary)] text-xs" />
                 <span className="font-medium">{limits.remaining === 999999 ? '∞' : limits.remaining}/{limits.dailyLimit === 999999 ? '∞' : limits.dailyLimit}</span>
-                <span className="text-[var(--matchup-text-muted)]">· {formatResetAt(limits.resetAt)}</span>
+                <span className="text-[var(--matchup-text-muted)] text-xs ml-1">· {formatResetAt(limits.resetAt)}</span>
               </div>
             )}
 
             {/* Boost */}
             {limits?.boostExpiresAt && new Date(limits.boostExpiresAt) > new Date() && (
-              <div className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs" style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)' }}>
-                <i className="fa-solid fa-bolt text-yellow-400" style={{ fontSize: '10px' }} />
+              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm" style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)' }}>
+                <i className="fa-solid fa-bolt text-yellow-400 text-xs" />
                 <span className="font-medium text-yellow-400">Boost · {formatTimeLeft(limits.boostExpiresAt)}</span>
               </div>
             )}
@@ -652,14 +652,14 @@ function HomeContent() {
           {/* Row 3: Action Buttons */}
           <div className="flex items-center gap-2">
             {limits?.tier === 'pro' && (
-              <button onClick={openLikedBy} className="btn-secondary text-sm flex-1">
-                <i className="fa-solid fa-eye mr-1.5" /> Seni beğenenler
+              <button onClick={openLikedBy} className="btn-secondary text-sm flex-1 whitespace-nowrap">
+                <i className="fa-solid fa-eye mr-1.5" /> Beğenenler
               </button>
             )}
-            <button onClick={() => setShowShop(true)} className="btn-secondary text-sm flex-1">
+            <button onClick={() => setShowShop(true)} className="btn-secondary text-sm flex-1 whitespace-nowrap">
               <i className="fa-solid fa-store mr-1.5" /> Mağaza
             </button>
-            <button onClick={startEditing} className="btn-secondary text-sm flex-1">
+            <button onClick={startEditing} className="btn-secondary text-sm flex-1 whitespace-nowrap">
               <i className="fa-solid fa-user-pen mr-1.5" /> Profil
             </button>
           </div>
