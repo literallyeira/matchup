@@ -62,9 +62,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sipariş oluşturulamadı' }, { status: 500 });
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://matchup.icu';
-    const callbackUrl = `${baseUrl}/api/auth/callback/banking`;
-    const gatewayUrl = `${GATEWAY_BASE}/gateway?auth_key=${encodeURIComponent(AUTH_KEY)}&type=0&price=${prod.price}&return_url=${encodeURIComponent(callbackUrl)}`;
+    // Token akışı: önce token üret, sonra /gateway/{token} ile yönlendir (query string 404 veriyor)
+    const tokenRes = await fetch(
+      `${GATEWAY_BASE}/gateway_token/generateToken?price=${prod.price}&type=0`,
+      { headers: { Authorization: `Bearer ${AUTH_KEY}` } }
+    );
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      console.error('Gateway token error:', tokenRes.status, errText);
+      return NextResponse.json(
+        { error: 'Ödeme sayfası açılamadı. Lütfen daha sonra deneyin.' },
+        { status: 502 }
+      );
+    }
+    const paymentTokenRaw = await tokenRes.text();
+    let token: string;
+    try {
+      const parsed = JSON.parse(paymentTokenRaw);
+      token = typeof parsed === 'string' ? parsed : (parsed?.token ?? parsed?.data ?? String(parsed));
+    } catch {
+      token = paymentTokenRaw.replace(/^"|"$/g, '').trim();
+    }
+    if (!token) {
+      return NextResponse.json({ error: 'Ödeme token alınamadı' }, { status: 502 });
+    }
+    const gatewayUrl = `${GATEWAY_BASE}/gateway/${encodeURIComponent(token)}`;
 
     const res = NextResponse.json({ redirectUrl: gatewayUrl });
     res.cookies.set('matchup_pending_order', orderId, {
