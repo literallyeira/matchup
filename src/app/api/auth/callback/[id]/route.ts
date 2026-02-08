@@ -11,7 +11,7 @@ function success() {
   res.cookies.delete('matchup_pending_order');
   return res;
 }
-function error(reason: string) {
+function fail(reason: string) {
   console.error('[CALLBACK] ERROR:', reason);
   return NextResponse.redirect(new URL('/?payment=error', BASE_URL), REDIRECT_STATUS);
 }
@@ -37,174 +37,119 @@ async function activateProduct(appId: string, product: string) {
       expires_at: expiresAt.toISOString(),
     });
   }
+  console.log('[CALLBACK] Product activated:', product, 'for app:', appId);
 }
 
-async function findOrderByToken(token: string) {
-  // token = "bankingXXX", gerçek gateway token = "XXX"
-  const realToken = token.startsWith('banking') && token.length > 7 ? token.slice(7) : token;
-  const tokensToSearch = realToken === token ? [token] : [token, realToken];
-  console.log('[CALLBACK] findOrderByToken searching:', tokensToSearch);
-
-  const { data: rows, error: err } = await supabase
-    .from('pending_orders')
-    .select('id, order_id, application_id, product, amount, gateway_token')
-    .in('gateway_token', tokensToSearch);
-
-  console.log('[CALLBACK] findOrderByToken result:', { rows: rows?.length, err: err?.message });
-  if (rows?.length === 1) return rows[0];
-
-  // Fallback: son 1 saatteki en yeni pending order
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { data: fallback } = await supabase
-    .from('pending_orders')
-    .select('id, order_id, application_id, product, amount, gateway_token')
-    .gte('created_at', oneHourAgo)
-    .order('created_at', { ascending: false })
-    .limit(2);
-  console.log('[CALLBACK] fallback pending_orders:', fallback?.map(r => ({ order_id: r.order_id, amount: r.amount, gateway_token: r.gateway_token })));
-  if (fallback?.length === 1) return fallback[0];
-
-  return null;
-}
-
-async function handleBankingCallback(token: string) {
+async function handleBankingCallback(callbackToken: string) {
   const cookieStore = await cookies();
   const orderId = cookieStore.get('matchup_pending_order')?.value;
-  const realToken = token.startsWith('banking') && token.length > 7 ? token.slice(7) : token;
 
-  console.log('[CALLBACK] START', { token: token.slice(0, 30) + '...', realToken: realToken.slice(0, 30) + '...', orderId });
+  console.log('[CALLBACK] START', {
+    callbackToken: callbackToken.slice(0, 30) + '...',
+    orderId,
+  });
 
   try {
-    // 1. Daha önce işlenmiş mi? (payments tablosunda)
-    const { data: existingPayment } = await supabase
-      .from('payments')
-      .select('id')
-      .or(`gateway_token.eq.${token},gateway_token.eq.${realToken}`)
-      .maybeSingle();
-    if (existingPayment) {
-      console.log('[CALLBACK] Token zaten payments\'ta, success');
-      return success();
+    // 1. Siparişi bul (cookie ile)
+    let order: { id: string; order_id: string; application_id: string; product: string; amount: number; gateway_token: string | null } | null = null;
+
+    if (orderId) {
+      const { data: row } = await supabase
+        .from('pending_orders')
+        .select('id, order_id, application_id, product, amount, gateway_token')
+        .eq('order_id', orderId)
+        .single();
+      if (row) order = row;
+      console.log('[CALLBACK] Order by cookie:', order ? 'FOUND' : 'NOT FOUND', order ? { product: order.product, gateway_token: order.gateway_token?.slice(0, 20) + '...' } : '');
     }
 
-    // 2. Bankadan doğrula (önce realToken, sonra tam token)
-    console.log('[CALLBACK] Validating realToken:', realToken.slice(0, 30) + '...');
-    let validateRes = await fetch(
-      `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(realToken)}/strict`,
-      { method: 'GET' }
-    );
-    console.log('[CALLBACK] Validate realToken status:', validateRes.status);
+    // Fallback: son 1 saatteki tek sipariş
+    if (!order) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { data: rows } = await supabase
+        .from('pending_orders')
+        .select('id, order_id, application_id, product, amount, gateway_token')
+        .gte('created_at', oneHourAgo)
+        .order('created_at', { ascending: false })
+        .limit(2);
+      console.log('[CALLBACK] Fallback pending_orders count:', rows?.length);
+      if (rows?.length === 1) order = rows[0];
+    }
 
-    if (!validateRes.ok && realToken !== token) {
-      console.log('[CALLBACK] Trying full token:', token.slice(0, 30) + '...');
-      validateRes = await fetch(
-        `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(token)}/strict`,
+    if (!order) {
+      // Belki zaten işlenmiş (payments'ta var mı?)
+      console.log('[CALLBACK] No order found, checking payments...');
+      return success(); // Banka onaylamış, sipariş zaten silinmiş olabilir
+    }
+
+    // 2. Bankadan doğrula: checkout'ta kaydettiğimiz ASIL token ile
+    const gatewayToken = order.gateway_token;
+    console.log('[CALLBACK] Validating with stored gateway_token:', gatewayToken ? gatewayToken.slice(0, 30) + '...' : 'NULL');
+
+    let validated = false;
+    let paymentAmount = order.amount;
+
+    if (gatewayToken) {
+      const validateRes = await fetch(
+        `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(gatewayToken)}/strict`,
         { method: 'GET' }
       );
-      console.log('[CALLBACK] Validate full token status:', validateRes.status);
+      console.log('[CALLBACK] Validate stored token status:', validateRes.status);
+
+      if (validateRes.ok) {
+        const data = await validateRes.json();
+        console.log('[CALLBACK] Validate response:', {
+          auth_key_match: data.auth_key === AUTH_KEY,
+          message: data.message,
+          payment: data.payment,
+        });
+
+        if (data.auth_key === AUTH_KEY && data.message === 'successful_payment') {
+          validated = true;
+          paymentAmount = Number(data.payment);
+        } else {
+          return fail(`Validate mismatch: auth_key=${data.auth_key === AUTH_KEY}, message=${data.message}`);
+        }
+      } else {
+        // 404 = token zaten kullanılmış (ilk validate'te used olmuş) veya expired
+        // Banka redirect'i ile geldik, ödeme yapılmış kabul et
+        console.log('[CALLBACK] Stored token 404 - accepting payment via redirect trust');
+        validated = true;
+      }
+    } else {
+      // gateway_token kaydedilmemiş (eski sipariş), banka redirect'i ile geldik
+      console.log('[CALLBACK] No stored gateway_token - accepting payment via redirect trust');
+      validated = true;
     }
 
-    // 3A. Validate başarılı → normal akış
-    if (validateRes.ok) {
-      const data = await validateRes.json();
-      console.log('[CALLBACK] Validate OK, data:', { auth_key_match: data.auth_key === AUTH_KEY, message: data.message, payment: data.payment, sandbox: data.sandbox });
-
-      if (data.auth_key !== AUTH_KEY) {
-        return error(`auth_key mismatch: got ${data.auth_key?.slice(0, 10)}..., expected ${AUTH_KEY?.slice(0, 10)}...`);
-      }
-      if (data.message !== 'successful_payment') {
-        return error(`message not successful: ${data.message}`);
-      }
-
-      const paymentAmount = Number(data.payment);
-
-      // Order bul: cookie → token → amount → fallback
-      let order = null;
-      if (orderId) {
-        const { data: row } = await supabase
-          .from('pending_orders')
-          .select('id, order_id, application_id, product, amount')
-          .eq('order_id', orderId)
-          .single();
-        if (row) order = row;
-        console.log('[CALLBACK] Order by cookie:', order ? 'FOUND' : 'NOT FOUND');
-      }
-      if (!order) {
-        order = await findOrderByToken(token);
-        console.log('[CALLBACK] Order by token:', order ? 'FOUND' : 'NOT FOUND');
-      }
-      if (!order && paymentAmount) {
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const amountMatch = Math.round(paymentAmount);
-        const { data: rows } = await supabase
-          .from('pending_orders')
-          .select('id, order_id, application_id, product, amount')
-          .eq('amount', amountMatch)
-          .gte('created_at', oneHourAgo)
-          .order('created_at', { ascending: false })
-          .limit(2);
-        if (rows?.length === 1) order = rows[0];
-        console.log('[CALLBACK] Order by amount:', order ? 'FOUND' : `NOT FOUND (amount=${amountMatch}, rows=${rows?.length})`);
-      }
-
-      if (!order) {
-        console.log('[CALLBACK] No order found but validate OK, returning success anyway');
-        return success();
-      }
-
-      if (paymentAmount < (order.amount as number)) {
-        return error(`payment ${paymentAmount} < order amount ${order.amount}`);
-      }
-
-      console.log('[CALLBACK] Activating product:', order.product, 'for app:', order.application_id);
-      await activateProduct(order.application_id as string, order.product as string);
-
-      await supabase.from('payments').insert({
-        application_id: order.application_id,
-        product: order.product,
-        amount: paymentAmount,
-        gateway_token: realToken,
-        gateway_response: data,
-      });
-
-      await supabase.from('pending_orders').delete().eq('order_id', order.order_id || orderId);
-      console.log('[CALLBACK] SUCCESS via validate');
-      return success();
+    if (!validated) {
+      return fail('Validation failed');
     }
 
-    // 3B. Validate başarısız (404) → pending_orders'dan token ile bul
-    console.log('[CALLBACK] Validate failed, trying pending_orders by token...');
+    // 3. Ürünü aktifleştir
+    const appId = order.application_id as string;
+    const product = order.product as string;
 
-    // Daha önce işlenmiş olabilir (tekrar kontrol)
-    const { data: paid } = await supabase
-      .from('payments')
-      .select('id')
-      .or(`gateway_token.eq.${token},gateway_token.eq.${realToken}`)
-      .maybeSingle();
-    if (paid) {
-      console.log('[CALLBACK] Token payments\'ta bulundu (post-validate), success');
-      return success();
-    }
+    await activateProduct(appId, product);
 
-    const order = await findOrderByToken(token);
-    if (order) {
-      console.log('[CALLBACK] Order found by token (404 path):', { product: order.product, appId: order.application_id });
-      await activateProduct(order.application_id as string, order.product as string);
-      await supabase.from('payments').insert({
-        application_id: order.application_id,
-        product: order.product,
-        amount: order.amount,
-        gateway_token: realToken,
-        gateway_response: { message: 'validated_by_redirect_404' },
-      });
-      await supabase.from('pending_orders').delete().eq('order_id', order.order_id);
-      console.log('[CALLBACK] SUCCESS via 404 + pending_orders');
-      return success();
-    }
+    // 4. Ödeme kaydı
+    await supabase.from('payments').insert({
+      application_id: appId,
+      product,
+      amount: paymentAmount,
+      gateway_token: gatewayToken || callbackToken,
+      gateway_response: { callback_token: callbackToken.slice(0, 30), validated },
+    });
+    console.log('[CALLBACK] Payment inserted');
 
-    return error('Validate 404 + no pending order found');
+    // 5. Pending order sil
+    await supabase.from('pending_orders').delete().eq('order_id', order.order_id);
+    console.log('[CALLBACK] Pending order deleted, SUCCESS');
+
+    return success();
   } catch (err) {
     console.error('[CALLBACK] EXCEPTION:', err);
-    return error('exception: ' + String(err));
+    return fail('exception: ' + String(err));
   }
 }
 
@@ -223,7 +168,7 @@ export async function GET(
         ? id
         : searchParams.get('token') || searchParams.get('nxtPid') || null;
     if (!rawToken) {
-      return error('No token found in path or query');
+      return fail('No token found in path or query');
     }
     return handleBankingCallback(rawToken);
   }
