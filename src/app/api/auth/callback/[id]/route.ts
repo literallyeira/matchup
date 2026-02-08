@@ -28,19 +28,11 @@ async function handleBankingCallback(token: string) {
       { method: 'GET' }
     );
 
-    // 404 = token zaten kullanıldı (strict mode). Payments'ta varsa yine success.
+    // 404 = token zaten kullanıldı (banka "used" yapıyor). Payments boş olsa bile success dön (çift istek)
     if (!validateRes.ok) {
-      const { data: paid } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('gateway_token', token)
-        .maybeSingle();
-      if (paid) {
-        const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
-        res.cookies.delete('matchup_pending_order');
-        return res;
-      }
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL), REDIRECT_STATUS);
+      const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
+      res.cookies.delete('matchup_pending_order');
+      return res;
     }
 
     const data = (await validateRes.json()) as {
