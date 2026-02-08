@@ -727,16 +727,16 @@ function HomeContent() {
                   <button
                       onClick={() => handleDislike(currentCard)}
                       disabled={!!actionPending || (limits !== null && limits.remaining === 0)}
-                      className="w-16 h-16 rounded-full border-2 border-red-500/50 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all disabled:opacity-50"
+                      className="w-18 h-18 rounded-full border-2 border-red-500/50 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all disabled:opacity-50"
                     >
                       <i className="fa-solid fa-xmark text-2xl" />
                     </button>
                     <button
                       onClick={() => handleLike(currentCard)}
                       disabled={!!actionPending || (limits !== null && limits.remaining === 0)}
-                      className="w-20 h-20 rounded-full bg-[var(--matchup-primary)] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all disabled:opacity-50"
+                      className="w-18 h-18 rounded-full bg-[var(--matchup-primary)] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all disabled:opacity-50"
                     >
-                      <i className="fa-solid fa-heart text-3xl" />
+                      <i className="fa-solid fa-heart text-2xl" />
                   </button>
                 </div>
               </>
