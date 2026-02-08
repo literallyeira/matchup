@@ -11,12 +11,35 @@ async function handleBankingCallback(token: string) {
   let orderId = cookieStore.get('matchup_pending_order')?.value;
 
   try {
+    // Token zaten işlendiyse (çift istek – banka token'ı ilk doğrulamada "used" yapıyor) success dön
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('gateway_token', token)
+      .maybeSingle();
+    if (existingPayment) {
+      const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
+      res.cookies.delete('matchup_pending_order');
+      return res;
+    }
+
     const validateRes = await fetch(
       `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(token)}/strict`,
       { method: 'GET' }
     );
 
+    // 404 = token zaten kullanıldı (strict mode). Payments'ta varsa yine success.
     if (!validateRes.ok) {
+      const { data: paid } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('gateway_token', token)
+        .maybeSingle();
+      if (paid) {
+        const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
+        res.cookies.delete('matchup_pending_order');
+        return res;
+      }
       return NextResponse.redirect(new URL('/?payment=error', BASE_URL), REDIRECT_STATUS);
     }
 
