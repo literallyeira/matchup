@@ -21,6 +21,11 @@ export default function AdminPage() {
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'applications' | 'matches'>('applications');
+    const [subModal, setSubModal] = useState<{ appId: string; name: string; currentTier: string } | null>(null);
+    const [subTier, setSubTier] = useState('free');
+    const [subDays, setSubDays] = useState(7);
+    const [subLoading, setSubLoading] = useState(false);
+    const [appSubs, setAppSubs] = useState<Record<string, { tier: string; expiresAt: string | null }>>({});
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -161,6 +166,72 @@ export default function AdminPage() {
             }
         });
         return matchedApps;
+    };
+
+    const fetchSubscription = async (appId: string) => {
+        try {
+            const res = await fetch(`/api/admin/subscription?applicationId=${appId}`, {
+                headers: { Authorization: password || localStorage.getItem('adminPassword') || '' },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAppSubs(prev => ({ ...prev, [appId]: { tier: data.tier, expiresAt: data.expiresAt } }));
+            }
+        } catch { /* ignore */ }
+    };
+
+    const fetchAllSubscriptions = async () => {
+        const pwd = password || localStorage.getItem('adminPassword') || '';
+        for (const app of applications) {
+            try {
+                const res = await fetch(`/api/admin/subscription?applicationId=${app.id}`, {
+                    headers: { Authorization: pwd },
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setAppSubs(prev => ({ ...prev, [app.id]: { tier: data.tier, expiresAt: data.expiresAt } }));
+                }
+            } catch { /* ignore */ }
+        }
+    };
+
+    const handleSubChange = async () => {
+        if (!subModal) return;
+        setSubLoading(true);
+        try {
+            const res = await fetch('/api/admin/subscription', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: password || localStorage.getItem('adminPassword') || '',
+                },
+                body: JSON.stringify({ applicationId: subModal.appId, tier: subTier, durationDays: subDays }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAppSubs(prev => ({ ...prev, [subModal.appId]: { tier: data.tier, expiresAt: data.expiresAt || null } }));
+                setSubModal(null);
+            }
+        } catch { /* ignore */ }
+        setSubLoading(false);
+    };
+
+    // Uygulamalar yüklenince üyelikleri getir
+    useEffect(() => {
+        if (applications.length > 0 && isAuthenticated) fetchAllSubscriptions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [applications.length, isAuthenticated]);
+
+    const getSubLabel = (tier: string) => {
+        if (tier === 'plus') return 'MatchUp+';
+        if (tier === 'pro') return 'MatchUp Pro';
+        return 'Ücretsiz';
+    };
+
+    const getSubColor = (tier: string) => {
+        if (tier === 'plus') return 'text-pink-400';
+        if (tier === 'pro') return 'text-violet-400';
+        return 'text-[var(--matchup-text-muted)]';
     };
 
     const handleLogout = () => {
@@ -461,12 +532,32 @@ export default function AdminPage() {
                                                                 {formatDate(app.created_at)}
                                                             </p>
                                                         </div>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDelete(app.id); }}
-                                                            className="btn-danger"
-                                                        >
-                                                            <i className="fa-solid fa-trash mr-2"></i>Sil
-                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            {/* Üyelik Badge */}
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const sub = appSubs[app.id];
+                                                                    setSubTier(sub?.tier || 'free');
+                                                                    setSubDays(7);
+                                                                    setSubModal({ appId: app.id, name: `${app.first_name} ${app.last_name}`, currentTier: sub?.tier || 'free' });
+                                                                }}
+                                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all hover:opacity-80 ${
+                                                                    appSubs[app.id]?.tier === 'pro' ? 'border-violet-500/40 bg-violet-500/15 text-violet-400' :
+                                                                    appSubs[app.id]?.tier === 'plus' ? 'border-pink-500/40 bg-pink-500/15 text-pink-400' :
+                                                                    'border-[var(--matchup-border)] bg-[var(--matchup-bg-input)] text-[var(--matchup-text-muted)]'
+                                                                }`}
+                                                            >
+                                                                <i className={`fa-solid ${appSubs[app.id]?.tier === 'pro' ? 'fa-crown' : appSubs[app.id]?.tier === 'plus' ? 'fa-star' : 'fa-user'} mr-1`} />
+                                                                {getSubLabel(appSubs[app.id]?.tier || 'free')}
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleDelete(app.id); }}
+                                                                className="btn-danger"
+                                                            >
+                                                                <i className="fa-solid fa-trash mr-2"></i>Sil
+                                                            </button>
+                                                        </div>
                                                     </div>
 
                                                     <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
@@ -615,6 +706,40 @@ export default function AdminPage() {
                     </div>
                 )}
             </div>
+
+            {/* Subscription Modal */}
+            {subModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setSubModal(null)}>
+                    <div className="card max-w-sm w-full animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-lg font-bold mb-1">Üyelik Değiştir</h3>
+                        <p className="text-[var(--matchup-text-muted)] text-sm mb-4">{subModal.name}</p>
+                        <p className="text-xs text-[var(--matchup-text-muted)] mb-4">Mevcut: <span className={getSubColor(subModal.currentTier)}>{getSubLabel(subModal.currentTier)}</span></p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="form-label">Tier</label>
+                                <select className="form-input" value={subTier} onChange={(e) => setSubTier(e.target.value)}>
+                                    <option value="free">Ücretsiz</option>
+                                    <option value="plus">MatchUp+</option>
+                                    <option value="pro">MatchUp Pro</option>
+                                </select>
+                            </div>
+                            {subTier !== 'free' && (
+                                <div>
+                                    <label className="form-label">Süre (gün)</label>
+                                    <input type="number" className="form-input" min={1} max={365} value={subDays} onChange={(e) => setSubDays(Number(e.target.value))} />
+                                </div>
+                            )}
+                            <div className="flex gap-2">
+                                <button onClick={handleSubChange} disabled={subLoading} className="btn-primary flex-1 py-2.5">
+                                    {subLoading ? 'Kaydediliyor...' : 'Kaydet'}
+                                </button>
+                                <button onClick={() => setSubModal(null)} className="btn-secondary flex-1 py-2.5">İptal</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Image Modal */}
             {selectedImage && (

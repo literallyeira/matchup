@@ -616,44 +616,35 @@ function HomeContent() {
             </div>
           </div>
 
-          {/* Row 2: Üyelik + Limitler */}
+          {/* Row 2: Üyelik + Limitler (tek satır, kompakt) */}
           <div className="flex items-center gap-2 flex-wrap mb-3">
             {/* Üyelik Badge */}
-            {limits && (
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${
-                limits.tier === 'free'
-                  ? 'bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)]'
-                  : `bg-gradient-to-r ${getTierColor(limits.tier)} bg-opacity-20`
-              }`}
-              style={limits.tier !== 'free' ? { background: `linear-gradient(135deg, ${limits.tier === 'pro' ? 'rgba(139,92,246,0.15)' : 'rgba(236,72,153,0.15)'}, ${limits.tier === 'pro' ? 'rgba(217,70,239,0.15)' : 'rgba(249,115,22,0.15)'})`, border: `1px solid ${limits.tier === 'pro' ? 'rgba(139,92,246,0.3)' : 'rgba(236,72,153,0.3)'}` } : {}}
+            {limits && limits.tier !== 'free' && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: `linear-gradient(135deg, ${limits.tier === 'pro' ? 'rgba(139,92,246,0.18)' : 'rgba(236,72,153,0.18)'}, ${limits.tier === 'pro' ? 'rgba(217,70,239,0.18)' : 'rgba(249,115,22,0.18)'})`, border: `1px solid ${limits.tier === 'pro' ? 'rgba(139,92,246,0.35)' : 'rgba(236,72,153,0.35)'}` }}
               >
-                {limits.tier !== 'free' && <i className={`fa-solid ${limits.tier === 'pro' ? 'fa-crown' : 'fa-star'} text-xs ${limits.tier === 'pro' ? 'text-violet-400' : 'text-pink-400'}`} />}
-                <span className="font-medium">{getTierLabel(limits.tier)}</span>
-                {limits.tier !== 'free' && limits.subscriptionExpiresAt && (
-                  <span className="text-xs opacity-75">· {formatTimeLeft(limits.subscriptionExpiresAt)} kaldı</span>
+                <i className={`fa-solid ${limits.tier === 'pro' ? 'fa-crown' : 'fa-star'} ${limits.tier === 'pro' ? 'text-violet-400' : 'text-pink-400'}`} style={{ fontSize: '10px' }} />
+                <span>{getTierLabel(limits.tier)}</span>
+                {limits.subscriptionExpiresAt && (
+                  <span className="opacity-70">· {formatTimeLeft(limits.subscriptionExpiresAt)}</span>
                 )}
               </div>
             )}
 
             {/* Like Counter */}
             {limits && (
-              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] text-sm">
-                <i className="fa-solid fa-heart text-[var(--matchup-primary)] text-xs" />
-                <span className="font-medium">{limits.remaining === 999999 ? '∞' : limits.remaining}</span>
-                <span className="text-[var(--matchup-text-muted)]">/</span>
-                <span className="text-[var(--matchup-text-muted)]">{limits.dailyLimit === 999999 ? '∞' : limits.dailyLimit}</span>
-                <span className="text-[var(--matchup-text-muted)] text-xs ml-1" title={new Date(limits.resetAt).toLocaleString('tr-TR')}>
-                  · {formatResetAt(limits.resetAt)}
-                </span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] text-xs">
+                <i className="fa-solid fa-heart text-[var(--matchup-primary)]" style={{ fontSize: '10px' }} />
+                <span className="font-medium">{limits.remaining === 999999 ? '∞' : limits.remaining}/{limits.dailyLimit === 999999 ? '∞' : limits.dailyLimit}</span>
+                <span className="text-[var(--matchup-text-muted)]">· {formatResetAt(limits.resetAt)}</span>
               </div>
             )}
 
             {/* Boost */}
             {limits?.boostExpiresAt && new Date(limits.boostExpiresAt) > new Date() && (
-              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm" style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)' }}>
-                <i className="fa-solid fa-bolt text-yellow-400 text-xs" />
-                <span className="font-medium text-yellow-400">Boost</span>
-                <span className="text-yellow-400/70 text-xs">{formatTimeLeft(limits.boostExpiresAt)}</span>
+              <div className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs" style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)' }}>
+                <i className="fa-solid fa-bolt text-yellow-400" style={{ fontSize: '10px' }} />
+                <span className="font-medium text-yellow-400">Boost · {formatTimeLeft(limits.boostExpiresAt)}</span>
               </div>
             )}
           </div>
@@ -933,7 +924,7 @@ function HomeContent() {
               <div className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-primary)]/50">
                 <h3 className="font-bold text-[var(--matchup-primary)] mb-1">MatchUp Pro</h3>
                 <p className="text-sm text-[var(--matchup-text-muted)] mb-2">1 haftalık. Sınırsız like/dislike. Seni beğenenleri görebilirsin.</p>
-                <p className="text-lg font-bold mb-1">İlk alımlara özel 12.000$</p>
+                <p className="text-lg font-bold mb-1">İlk alımlara özel 16.500$</p>
                 <p className="text-xs text-[var(--matchup-text-muted)] mb-2">(Normal 20.000$)</p>
                 <button onClick={() => handleCheckout('pro')} disabled={!!checkoutPending} className="btn-primary text-sm py-2">Satın Al</button>
               </div>

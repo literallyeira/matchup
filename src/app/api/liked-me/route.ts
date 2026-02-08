@@ -49,12 +49,42 @@ export async function GET(request: Request) {
       return NextResponse.json({ likedBy: [] });
     }
 
+    // Eşleşmiş kişileri bul
+    const { data: matchRows } = await supabase
+      .from('matches')
+      .select('application_1_id, application_2_id')
+      .or(`application_1_id.eq.${myApp.id},application_2_id.eq.${myApp.id}`);
+    const matchedIds = new Set<string>();
+    (matchRows ?? []).forEach((m: { application_1_id: string; application_2_id: string }) => {
+      if (m.application_1_id === myApp.id) matchedIds.add(m.application_2_id);
+      else matchedIds.add(m.application_1_id);
+    });
+
+    // Reddettiğimiz kişileri bul (dislike)
+    const { data: dislikes } = await supabase
+      .from('dislikes')
+      .select('to_application_id')
+      .eq('from_application_id', myApp.id);
+    const dislikedIds = new Set((dislikes ?? []).map((d: { to_application_id: string }) => d.to_application_id));
+
+    // Biz zaten like ettiğimiz kişileri bul
+    const { data: myLikes } = await supabase
+      .from('likes')
+      .select('to_application_id')
+      .eq('from_application_id', myApp.id);
+    const likedIds = new Set((myLikes ?? []).map((l: { to_application_id: string }) => l.to_application_id));
+
+    // Filtrele: eşleşmiş, reddetmiş veya zaten beğenmiş olanları çıkar
+    const filteredFromIds = fromIds.filter((id: string) => !matchedIds.has(id) && !dislikedIds.has(id) && !likedIds.has(id));
+    if (filteredFromIds.length === 0) {
+      return NextResponse.json({ likedBy: [] });
+    }
+
     const { data: apps } = await supabase
       .from('applications')
       .select('*')
-      .in('id', fromIds);
+      .in('id', filteredFromIds);
 
-    // Zaten eşleştiğimiz kişileri çıkar (match varsa listede göstermeyebiliriz; istersen göster)
     const list = (apps ?? []) as Application[];
     return NextResponse.json({ likedBy: list });
   } catch (error) {

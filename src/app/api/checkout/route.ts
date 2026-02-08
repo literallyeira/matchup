@@ -12,7 +12,7 @@ const GATEWAY_BASE = 'https://banking-tr.gta.world';
 
 const PRODUCTS: Record<string, { price: number }> = {
   plus: { price: 5000 },
-  pro: { price: 12000 },
+  pro: { price: 16500 },
   boost: { price: 5000 },
 };
 
