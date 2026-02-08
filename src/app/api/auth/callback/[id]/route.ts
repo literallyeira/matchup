@@ -23,16 +23,32 @@ async function handleBankingCallback(token: string) {
       return res;
     }
 
-    const validateRes = await fetch(
+    let validateRes = await fetch(
       `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(token)}/strict`,
       { method: 'GET' }
     );
+    // Banka bazen "banking" öneki olmadan bekliyor olabilir; 404 ise dene
+    if (!validateRes.ok && token.startsWith('banking') && token.length > 7) {
+      const tokenWithoutPrefix = token.slice(7);
+      validateRes = await fetch(
+        `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(tokenWithoutPrefix)}/strict`,
+        { method: 'GET' }
+      );
+    }
 
-    // 404 = token zaten kullanıldı (banka "used" yapıyor). Payments boş olsa bile success dön (çift istek)
+    // 404 = token zaten kullanıldı. Sadece çift istekse success dön (payments'ta varsa); yoksa error
     if (!validateRes.ok) {
-      const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
-      res.cookies.delete('matchup_pending_order');
-      return res;
+      const { data: paid } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('gateway_token', token)
+        .maybeSingle();
+      if (paid) {
+        const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
+        res.cookies.delete('matchup_pending_order');
+        return res;
+      }
+      return NextResponse.redirect(new URL('/?payment=error', BASE_URL), REDIRECT_STATUS);
     }
 
     const data = (await validateRes.json()) as {
@@ -138,19 +154,15 @@ export async function GET(
   const { searchParams } = new URL(request.url);
 
   if (id.startsWith('banking')) {
-    // Token path'te (banking + token) veya query'de token/nxtPid olabilir
-    let token =
+    // Banka tam string bekliyor (banking dahil). Path: bankingXXX veya query: token / nxtPid
+    const rawToken =
       id.length > 7
-        ? id.slice(7)
-        : searchParams.get('token') ||
-          (() => {
-            const n = searchParams.get('nxtPid');
-            return n ? (n.startsWith('banking') ? n.slice(7) : n) : null;
-          })();
-    if (!token) {
+        ? id
+        : searchParams.get('token') || searchParams.get('nxtPid') || null;
+    if (!rawToken) {
       return NextResponse.redirect(new URL('/?payment=error', BASE_URL), 302);
     }
-    return handleBankingCallback(token);
+    return handleBankingCallback(rawToken);
   }
 
   const { GET } = await import('@/app/api/auth/[...nextauth]/route');
