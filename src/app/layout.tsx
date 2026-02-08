@@ -34,16 +34,7 @@ export default function RootLayout({
   return (
     <html lang="tr" className={inter.variable}>
       <head>
-        <link
-          rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-          media="print"
-          // @ts-expect-error onLoad sets media to all after load
-          onLoad="this.media='all'"
-        />
-        <noscript>
-          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-        </noscript>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
       </head>
       <body className={`${inter.className} antialiased min-h-screen flex flex-col`}>
         <Providers>
@@ -61,10 +52,8 @@ export default function RootLayout({
                     <img
                       src="https://forum-tr.gta.world/uploads/monthly_2025_02/logo.png.3fe10156c1213bdb8f59cd9bc9e15781.png"
                       alt="GTA World TR"
-                      className="h-6 opacity-70"
+                      className="h-6 w-auto opacity-70"
                       loading="lazy"
-                      width={120}
-                      height={24}
                     />
                   </a>
                   <div className="flex items-center gap-6">
