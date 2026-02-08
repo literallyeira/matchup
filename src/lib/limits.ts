@@ -37,11 +37,15 @@ export async function getSubscriptionExpiry(applicationId: string): Promise<stri
 }
 
 /** Günlük limit: free 10, plus 20, pro sınırsız */
-export async function getDailyLimit(applicationId: string): Promise<number> {
-  const tier = await getTier(applicationId);
+function dailyLimitForTier(tier: Tier): number {
   if (tier === 'pro') return 999999;
   if (tier === 'plus') return PLUS_DAILY_LIMIT;
   return FREE_DAILY_LIMIT;
+}
+
+export async function getDailyLimit(applicationId: string): Promise<number> {
+  const tier = await getTier(applicationId);
+  return dailyLimitForTier(tier);
 }
 
 /** Kullanılan ve sıfırlanma zamanını al; gerekirse sıfırla */
@@ -91,25 +95,67 @@ export async function consumeLikeSlot(applicationId: string): Promise<{ ok: bool
   return { ok: true, remaining: limit - newUsed, resetAt: resetAt.toISOString() };
 }
 
-/** Sadece bilgi (sayacı artırmadan) */
+/** Sadece bilgi (sayacı artırmadan) — paralel sorgular */
 export async function getLimitsInfo(applicationId: string): Promise<LimitsInfo> {
-  const tier = await getTier(applicationId);
-  const dailyLimit = await getDailyLimit(applicationId);
-  const { used, resetAt } = await getOrResetDaily(applicationId);
+  // 3 bağımsız sorguyu paralel çalıştır (eskiden 5 sequential)
+  const [subResult, dailyResult, boostResult] = await Promise.all([
+    supabase
+      .from('subscriptions')
+      .select('tier, expires_at')
+      .eq('application_id', applicationId)
+      .single(),
+    supabase
+      .from('daily_likes')
+      .select('likes_used_since_reset, reset_at')
+      .eq('application_id', applicationId)
+      .single(),
+    supabase
+      .from('boosts')
+      .select('expires_at')
+      .eq('application_id', applicationId)
+      .gt('expires_at', new Date().toISOString())
+      .order('expires_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  // Tier
+  const now = new Date();
+  let tier: Tier = 'free';
+  let subscriptionExpiresAt: string | null = null;
+  if (subResult.data && new Date(subResult.data.expires_at) > now) {
+    tier = subResult.data.tier as 'plus' | 'pro';
+    subscriptionExpiresAt = subResult.data.expires_at;
+  }
+
+  const dailyLimit = dailyLimitForTier(tier);
+
+  // Daily reset
+  let used = 0;
+  let resetAt: Date;
+  if (!dailyResult.data || dailyResult.error) {
+    resetAt = new Date(now.getTime() + RESET_HOURS * 60 * 60 * 1000);
+    await supabase.from('daily_likes').upsert({
+      application_id: applicationId,
+      likes_used_since_reset: 0,
+      reset_at: resetAt.toISOString(),
+    }, { onConflict: 'application_id' });
+  } else {
+    resetAt = new Date(dailyResult.data.reset_at);
+    if (now >= resetAt) {
+      resetAt = new Date(now.getTime() + RESET_HOURS * 60 * 60 * 1000);
+      await supabase.from('daily_likes').update({
+        likes_used_since_reset: 0,
+        reset_at: resetAt.toISOString(),
+      }).eq('application_id', applicationId);
+      used = 0;
+    } else {
+      used = dailyResult.data.likes_used_since_reset ?? 0;
+    }
+  }
+
   const remaining = Math.max(0, dailyLimit - used);
-
-  let boostExpiresAt: string | null = null;
-  const { data: boost } = await supabase
-    .from('boosts')
-    .select('expires_at')
-    .eq('application_id', applicationId)
-    .gt('expires_at', new Date().toISOString())
-    .order('expires_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (boost?.expires_at) boostExpiresAt = boost.expires_at;
-
-  const subscriptionExpiresAt = await getSubscriptionExpiry(applicationId);
+  const boostExpiresAt = boostResult.data?.expires_at || null;
 
   return {
     tier,

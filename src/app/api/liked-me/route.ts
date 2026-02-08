@@ -39,40 +39,29 @@ export async function GET(request: Request) {
       );
     }
 
-    const { data: likes } = await supabase
-      .from('likes')
-      .select('from_application_id')
-      .eq('to_application_id', myApp.id);
+    // 4 bağımsız sorguyu paralel çalıştır (eskiden 4 sequential)
+    const [likesRes, matchesRes, dislikesRes, myLikesRes] = await Promise.all([
+      supabase.from('likes').select('from_application_id').eq('to_application_id', myApp.id),
+      supabase.from('matches').select('application_1_id, application_2_id').or(`application_1_id.eq.${myApp.id},application_2_id.eq.${myApp.id}`),
+      supabase.from('dislikes').select('to_application_id').eq('from_application_id', myApp.id),
+      supabase.from('likes').select('to_application_id').eq('from_application_id', myApp.id),
+    ]);
 
-    const fromIds = (likes ?? []).map((r: { from_application_id: string }) => r.from_application_id);
+    const fromIds = (likesRes.data ?? []).map((r: { from_application_id: string }) => r.from_application_id);
     if (fromIds.length === 0) {
       return NextResponse.json({ likedBy: [] });
     }
 
-    // Eşleşmiş kişileri bul
-    const { data: matchRows } = await supabase
-      .from('matches')
-      .select('application_1_id, application_2_id')
-      .or(`application_1_id.eq.${myApp.id},application_2_id.eq.${myApp.id}`);
+    // Eşleşmiş kişiler
     const matchedIds = new Set<string>();
-    (matchRows ?? []).forEach((m: { application_1_id: string; application_2_id: string }) => {
+    (matchesRes.data ?? []).forEach((m: { application_1_id: string; application_2_id: string }) => {
       if (m.application_1_id === myApp.id) matchedIds.add(m.application_2_id);
       else matchedIds.add(m.application_1_id);
     });
 
-    // Reddettiğimiz kişileri bul (dislike)
-    const { data: dislikes } = await supabase
-      .from('dislikes')
-      .select('to_application_id')
-      .eq('from_application_id', myApp.id);
-    const dislikedIds = new Set((dislikes ?? []).map((d: { to_application_id: string }) => d.to_application_id));
-
-    // Biz zaten like ettiğimiz kişileri bul
-    const { data: myLikes } = await supabase
-      .from('likes')
-      .select('to_application_id')
-      .eq('from_application_id', myApp.id);
-    const likedIds = new Set((myLikes ?? []).map((l: { to_application_id: string }) => l.to_application_id));
+    // Reddettiğimiz + beğendiğimiz kişiler
+    const dislikedIds = new Set((dislikesRes.data ?? []).map((d: { to_application_id: string }) => d.to_application_id));
+    const likedIds = new Set((myLikesRes.data ?? []).map((l: { to_application_id: string }) => l.to_application_id));
 
     // Filtrele: eşleşmiş, reddetmiş veya zaten beğenmiş olanları çıkar
     const filteredFromIds = fromIds.filter((id: string) => !matchedIds.has(id) && !dislikedIds.has(id) && !likedIds.has(id));
