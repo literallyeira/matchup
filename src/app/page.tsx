@@ -87,6 +87,11 @@ function HomeContent() {
     if (saved === 'true') setTestMode(true);
   }, []);
 
+  const saveSelectedCharacter = useCallback((char: Character | null) => {
+    if (char) localStorage.setItem('matchup_selected_character', JSON.stringify({ id: char.id, memberid: char.memberid, firstname: char.firstname, lastname: char.lastname }));
+    else localStorage.removeItem('matchup_selected_character');
+  }, []);
+
   const fetchLimits = useCallback(async () => {
     if (!selectedCharacter || testMode) return;
     try {
@@ -121,6 +126,21 @@ function HomeContent() {
       ? { user: { ...TEST_MODE_USER, name: TEST_MODE_USER.username } }
       : session;
   const effectiveStatus = testMode ? (testModeLoggedIn ? 'authenticated' : 'unauthenticated') : status;
+
+  useEffect(() => {
+    if (effectiveStatus !== 'authenticated' || !effectiveSession?.user) return;
+    const chars = testMode ? TEST_MODE_USER.characters : (effectiveSession.user as any).characters;
+    if (!chars?.length || selectedCharacter) return;
+    try {
+      const raw = localStorage.getItem('matchup_selected_character');
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { id: number; memberid: number; firstname: string; lastname: string };
+      const found = (chars as Character[]).find((c) => c.id === saved.id);
+      if (found) setSelectedCharacter(found);
+    } catch {
+      // ignore
+    }
+  }, [effectiveStatus, effectiveSession?.user, testMode, selectedCharacter]);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -420,7 +440,7 @@ function HomeContent() {
                 {characters.map((char: Character) => (
                   <button
                     key={char.id}
-                    onClick={() => setSelectedCharacter(char)}
+                    onClick={() => { setSelectedCharacter(char); saveSelectedCharacter(char); }}
                     className="w-full p-4 rounded-xl bg-[var(--matchup-bg-input)] hover:bg-[var(--matchup-primary)] hover:text-white transition-all text-left flex items-center justify-between group"
                   >
                     <span className="font-semibold">{char.firstname} {char.lastname}</span>

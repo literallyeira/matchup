@@ -4,14 +4,11 @@ import { supabase } from '@/lib/supabase';
 
 const AUTH_KEY = process.env.GTAW_GATEWAY_AUTH_KEY!;
 const BASE_URL = process.env.NEXTAUTH_URL || 'https://matchup.icu';
+const REDIRECT_STATUS = 302;
 
 async function handleBankingCallback(token: string) {
   const cookieStore = await cookies();
-  const orderId = cookieStore.get('matchup_pending_order')?.value;
-
-  if (!orderId) {
-    return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
-  }
+  let orderId = cookieStore.get('matchup_pending_order')?.value;
 
   try {
     const validateRes = await fetch(
@@ -20,7 +17,7 @@ async function handleBankingCallback(token: string) {
     );
 
     if (!validateRes.ok) {
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+      return NextResponse.redirect(new URL('/?payment=error', BASE_URL), REDIRECT_STATUS);
     }
 
     const data = (await validateRes.json()) as {
@@ -31,22 +28,43 @@ async function handleBankingCallback(token: string) {
     };
 
     if (data.auth_key !== AUTH_KEY || data.message !== 'successful_payment') {
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
-    }
-
-    const { data: order, error: orderError } = await supabase
-      .from('pending_orders')
-      .select('application_id, product, amount')
-      .eq('order_id', orderId)
-      .single();
-
-    if (orderError || !order) {
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+      return NextResponse.redirect(new URL('/?payment=error', BASE_URL), REDIRECT_STATUS);
     }
 
     const paymentAmount = Number(data.payment);
+    let order: { application_id: string; product: string; amount: number } | null = null;
+
+    if (orderId) {
+      const { data: row, error: orderError } = await supabase
+        .from('pending_orders')
+        .select('application_id, product, amount')
+        .eq('order_id', orderId)
+        .single();
+      if (!orderError && row) order = row;
+    }
+
+    if (!order && paymentAmount) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const amountMatch = Math.round(paymentAmount);
+      const { data: rows } = await supabase
+        .from('pending_orders')
+        .select('id, order_id, application_id, product, amount')
+        .eq('amount', amountMatch)
+        .gte('created_at', oneHourAgo)
+        .order('created_at', { ascending: false })
+        .limit(2);
+      if (rows?.length === 1) {
+        order = rows[0];
+        orderId = rows[0].order_id;
+      }
+    }
+
+    if (!order) {
+      return NextResponse.redirect(new URL(orderId ? '/?payment=error' : '/?payment=success', BASE_URL), REDIRECT_STATUS);
+    }
+
     if (paymentAmount < (order.amount as number)) {
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+      return NextResponse.redirect(new URL('/?payment=error', BASE_URL), REDIRECT_STATUS);
     }
 
     const appId = order.application_id as string;
@@ -81,14 +99,14 @@ async function handleBankingCallback(token: string) {
       gateway_response: data,
     });
 
-    await supabase.from('pending_orders').delete().eq('order_id', orderId);
+    if (orderId) await supabase.from('pending_orders').delete().eq('order_id', orderId);
 
-    const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL));
+    const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
     res.cookies.delete('matchup_pending_order');
     return res;
   } catch (error) {
     console.error('Banking callback error:', error);
-    return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+    return NextResponse.redirect(new URL('/?payment=error', BASE_URL), REDIRECT_STATUS);
   }
 }
 
@@ -104,7 +122,7 @@ export async function GET(
   if (id.startsWith('banking')) {
     const token = id === 'banking' ? searchParams.get('token') : id.slice(7);
     if (!token) {
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+      return NextResponse.redirect(new URL('/?payment=error', BASE_URL), 302);
     }
     return handleBankingCallback(token);
   }
