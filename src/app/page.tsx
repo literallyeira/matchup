@@ -597,7 +597,7 @@ function HomeContent() {
 
   return (
     <main className="py-6 px-4 pb-24">
-      <div className="max-w-md mx-auto">
+      <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="animate-fade-in mb-6">
           {/* Row 1: Logo + Karakter + Çıkış */}
