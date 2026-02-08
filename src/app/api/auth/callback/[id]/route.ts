@@ -36,7 +36,7 @@ async function handleBankingCallback(token: string) {
       );
     }
 
-    // 404 = token zaten kullanıldı. Sadece çift istekse success dön (payments'ta varsa); yoksa error
+    // 404 = token bankada zaten "used". pending_orders'da bu token ile sipariş varsa işle (redirect bankadan geldi)
     if (!validateRes.ok) {
       const { data: paid } = await supabase
         .from('payments')
@@ -44,6 +44,48 @@ async function handleBankingCallback(token: string) {
         .eq('gateway_token', token)
         .maybeSingle();
       if (paid) {
+        const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
+        res.cookies.delete('matchup_pending_order');
+        return res;
+      }
+      const tokenForLookup = token.startsWith('banking') && token.length > 7 ? token.slice(7) : token;
+      const tokensToMatch = tokenForLookup === token ? [token] : [token, tokenForLookup];
+      const { data: rows } = await supabase
+        .from('pending_orders')
+        .select('id, order_id, application_id, product, amount')
+        .in('gateway_token', tokensToMatch);
+      if (rows?.length === 1) {
+        const order = rows[0];
+        const appId = order.application_id as string;
+        const product = order.product as string;
+        const now = new Date();
+        if (product === 'plus') {
+          const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          await supabase.from('subscriptions').upsert(
+            { application_id: appId, tier: 'plus', expires_at: expiresAt.toISOString() },
+            { onConflict: 'application_id' }
+          );
+        } else if (product === 'pro') {
+          const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          await supabase.from('subscriptions').upsert(
+            { application_id: appId, tier: 'pro', expires_at: expiresAt.toISOString() },
+            { onConflict: 'application_id' }
+          );
+        } else if (product === 'boost') {
+          const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          await supabase.from('boosts').insert({
+            application_id: appId,
+            expires_at: expiresAt.toISOString(),
+          });
+        }
+        await supabase.from('payments').insert({
+          application_id: appId,
+          product,
+          amount: order.amount,
+          gateway_token: token,
+          gateway_response: { message: 'validated_by_redirect_404' },
+        });
+        await supabase.from('pending_orders').delete().eq('order_id', order.order_id);
         const res = NextResponse.redirect(new URL('/?payment=success', BASE_URL), REDIRECT_STATUS);
         res.cookies.delete('matchup_pending_order');
         return res;

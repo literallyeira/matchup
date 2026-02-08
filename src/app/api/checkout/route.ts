@@ -86,6 +86,8 @@ export async function POST(request: Request) {
     if (!token) {
       return NextResponse.json({ error: 'Ödeme token alınamadı' }, { status: 502 });
     }
+    await supabase.from('pending_orders').update({ gateway_token: token }).eq('order_id', orderId);
+
     const gatewayUrl = `${GATEWAY_BASE}/gateway/${encodeURIComponent(token)}`;
 
     const res = NextResponse.json({ redirectUrl: gatewayUrl });
