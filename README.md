@@ -77,7 +77,12 @@ npm install
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ADMIN_PASSWORD=matchup2024
+NEXTAUTH_URL=http://localhost:3000
+
+# GTA World banka ağ geçidi (Mağaza: Plus/Pro/Boost ödemeleri)
+GTAW_GATEWAY_AUTH_KEY=your_auth_key_from_banking
 ```
+Ödeme callback URL'ini banka tarafına kaydettir: `https://matchup.icu/api/auth/callback/banking`
 
 ### 3. Geliştirme
 
@@ -158,6 +163,15 @@ matchup/
 ### Tinder migration (likes / dislikes)
 
 Mevcut projede Tinder mantığına geçmek için Supabase SQL Editor'da **`supabase_tinder_migration.sql`** dosyasını çalıştır. Bu dosya `likes` ve `dislikes` tablolarını ekler; eşleşmeler artık yalnızca karşılıklı like ile oluşturulur.
+
+### Günlük limit + Plus/Pro/Boost (Mağaza)
+
+Supabase SQL Editor'da **`supabase_limits_subscriptions.sql`** dosyasını çalıştır. Bu dosya `daily_likes`, `subscriptions`, `boosts`, `payments`, `pending_orders` tablolarını ekler. Ardından `.env.local` içine **`GTAW_GATEWAY_AUTH_KEY`** ekle (banka tarafından verilen auth key). Ödeme callback URL'ini bankaya kaydettir: `https://matchup.icu/api/auth/callback/banking`.
+
+- **Normal:** Günlük 10 like/dislike, 24 saatte bir sıfırlanır.
+- **MatchUp+ (5.000$, 1 hafta):** Günlük 20 like/dislike.
+- **MatchUp Pro (12.000$, 1 hafta):** Sınırsız like/dislike + seni beğenenleri görme.
+- **Beni öne çıkart (5.000$, 24 saat):** Uyumlu herkeste ilk 10'da görünürsün.
 
 ### Test için verileri sıfırlama
 

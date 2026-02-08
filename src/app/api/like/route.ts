@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { consumeLikeSlot } from '@/lib/limits';
 
 // POST - Like at: karşı taraf da beni like ettiyse match oluştur
 export async function POST(request: Request) {
@@ -38,6 +39,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kendine like atamazsın' }, { status: 400 });
     }
 
+    const limitResult = await consumeLikeSlot(fromId);
+    if (!limitResult.ok) {
+      return NextResponse.json(
+        { error: 'Günlük like/dislike hakkınız doldu. 24 saat sonra yenilenecek.', remaining: 0, resetAt: limitResult.resetAt },
+        { status: 429 }
+      );
+    }
+
     // Like ekle (varsa ignore)
     const { error: likeError } = await supabase
       .from('likes')
@@ -72,7 +81,12 @@ export async function POST(request: Request) {
       isMatch = !matchError;
     }
 
-    return NextResponse.json({ success: true, isMatch });
+    return NextResponse.json({
+      success: true,
+      isMatch,
+      remaining: limitResult.remaining,
+      resetAt: limitResult.resetAt,
+    });
   } catch (error) {
     console.error('Like error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

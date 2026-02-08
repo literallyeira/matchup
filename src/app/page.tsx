@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { Application } from '@/lib/supabase';
 
 interface Character {
@@ -30,7 +31,19 @@ const TEST_MODE_USER = {
   ],
 };
 
-export default function Home() {
+function formatResetAt(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = d.getTime() - now.getTime();
+  const h = Math.floor(diff / (60 * 60 * 1000));
+  const m = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+  if (h > 0) return `${h}s ${m}dk sonra`;
+  if (m > 0) return `${m}dk sonra`;
+  return 'Yakında';
+}
+
+function HomeContent() {
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -44,6 +57,12 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'discover' | 'matches'>('discover');
   const [showMatchModal, setShowMatchModal] = useState<Application | null>(null);
   const [actionPending, setActionPending] = useState<string | null>(null);
+  const [limits, setLimits] = useState<{ tier: string; dailyLimit: number; remaining: number; resetAt: string; boostExpiresAt: string | null } | null>(null);
+  const [showShop, setShowShop] = useState(false);
+  const [checkoutPending, setCheckoutPending] = useState<string | null>(null);
+  const [showLikedBy, setShowLikedBy] = useState(false);
+  const [likedBy, setLikedBy] = useState<Application[]>([]);
+  const [loadingLikedBy, setLoadingLikedBy] = useState(false);
 
   const [testMode, setTestMode] = useState(false);
   const [testModeLoggedIn, setTestModeLoggedIn] = useState(false);
@@ -67,6 +86,35 @@ export default function Home() {
     const saved = localStorage.getItem('matchup_test_mode');
     if (saved === 'true') setTestMode(true);
   }, []);
+
+  const fetchLimits = useCallback(async () => {
+    if (!selectedCharacter || testMode) return;
+    try {
+      const res = await fetch(`/api/me/limits?characterId=${selectedCharacter.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLimits(data);
+      }
+    } catch {
+      // ignore
+    }
+  }, [selectedCharacter, testMode]);
+
+  useEffect(() => {
+    if (hasApplication && selectedCharacter && !showForm) fetchLimits();
+  }, [hasApplication, selectedCharacter, showForm, fetchLimits]);
+
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (payment === 'success') {
+      showToast('Ödeme başarılı! Özellikleriniz aktif.', 'success');
+      fetchLimits();
+      window.history.replaceState({}, '', '/');
+    } else if (payment === 'error') {
+      showToast('Ödeme işlemi başarısız veya iptal edildi.', 'error');
+      window.history.replaceState({}, '', '/');
+    }
+  }, [searchParams]);
 
   const effectiveSession =
     testMode && testModeLoggedIn
@@ -156,12 +204,15 @@ export default function Home() {
       const data = await res.json();
       if (res.ok) {
         setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
+        if (data.remaining !== undefined && limits) setLimits((l) => l ? { ...l, remaining: data.remaining, resetAt: data.resetAt || l.resetAt } : null);
         if (data.isMatch) {
           setShowMatchModal(profile);
           fetchMyData();
         }
       } else {
-        showToast(data.error || 'Bir hata oluştu', 'error');
+        if (res.status === 429) showToast(data.error || 'Günlük hakkınız doldu.', 'error');
+        else showToast(data.error || 'Bir hata oluştu', 'error');
+        if (data.resetAt && limits) setLimits((l) => l ? { ...l, remaining: 0, resetAt: data.resetAt } : null);
       }
     } catch {
       showToast('Bağlantı hatası', 'error');
@@ -174,12 +225,15 @@ export default function Home() {
     if (!selectedCharacter || testMode) return;
     setActionPending(profile.id);
     try {
-      await fetch('/api/dislike', {
+      const res = await fetch('/api/dislike', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ toApplicationId: profile.id, characterId: selectedCharacter.id }),
       });
+      const data = res.ok ? await res.json() : {};
       setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
+      if (data.remaining !== undefined && limits) setLimits((l) => l ? { ...l, remaining: data.remaining, resetAt: data.resetAt || l.resetAt } : null);
+      if (!res.ok && res.status === 429) showToast('Günlük hakkınız doldu.', 'error');
     } catch {
       showToast('Bağlantı hatası', 'error');
     } finally {
@@ -268,6 +322,28 @@ export default function Home() {
       showToast('Bağlantı hatası.', 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCheckout = async (product: 'plus' | 'pro' | 'boost') => {
+    if (!selectedCharacter) return;
+    setCheckoutPending(product);
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product, characterId: selectedCharacter.id }),
+      });
+      const data = await res.json();
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
+      showToast(data.error || 'Ödeme başlatılamadı', 'error');
+    } catch {
+      showToast('Bağlantı hatası', 'error');
+    } finally {
+      setCheckoutPending(null);
     }
   };
 
@@ -463,7 +539,41 @@ export default function Home() {
       <div className="max-w-md mx-auto">
         <div className="flex items-center justify-between mb-6 animate-fade-in">
           <Image src="/matchup_logo.png" alt="MatchUp" width={120} height={34} priority />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {limits && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--matchup-bg-input)] text-sm">
+                <span className="text-[var(--matchup-text-muted)]">
+                  <i className="fa-solid fa-heart mr-1 text-[var(--matchup-primary)]" />
+                  {limits.remaining === 999999 ? '∞' : limits.remaining}/{limits.dailyLimit === 999999 ? '∞' : limits.dailyLimit}
+                </span>
+                <span className="text-[var(--matchup-text-muted)] text-xs" title={new Date(limits.resetAt).toLocaleString('tr-TR')}>
+                  {formatResetAt(limits.resetAt)}
+                </span>
+              </div>
+            )}
+            {limits?.tier === 'pro' && (
+              <button
+                onClick={async () => {
+                  setShowLikedBy(true);
+                  setLoadingLikedBy(true);
+                  try {
+                    const res = await fetch(`/api/liked-me?characterId=${selectedCharacter?.id}`);
+                    const data = await res.json();
+                    setLikedBy(data.likedBy || []);
+                  } catch {
+                    setLikedBy([]);
+                  } finally {
+                    setLoadingLikedBy(false);
+                  }
+                }}
+                className="btn-secondary text-sm"
+              >
+                <i className="fa-solid fa-eye mr-1" /> Seni beğenenler
+              </button>
+            )}
+            <button onClick={() => setShowShop(true)} className="btn-secondary text-sm">
+              <i className="fa-solid fa-store mr-1" /> Mağaza
+            </button>
             <button onClick={startEditing} className="btn-secondary text-sm">
               <i className="fa-solid fa-user-pen mr-1" /> Profil
             </button>
@@ -525,20 +635,23 @@ export default function Home() {
                     <p className="text-sm text-[var(--matchup-text-muted)] line-clamp-3">{currentCard.description}</p>
                   </div>
                 </div>
+                {limits?.remaining === 0 && (
+                  <p className="text-center text-[var(--matchup-text-muted)] text-sm mt-4">Günlük hakkınız doldu. 24 saat sonra yenilenecek veya Mağaza'dan daha fazla hak alabilirsiniz.</p>
+                )}
                 <div className="flex items-center justify-center gap-8 mt-8">
                   <button
-                    onClick={() => handleDislike(currentCard)}
-                    disabled={!!actionPending}
-                    className="w-16 h-16 rounded-full border-2 border-red-500/50 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all disabled:opacity-50"
-                  >
-                    <i className="fa-solid fa-xmark text-2xl" />
-                  </button>
-                  <button
-                    onClick={() => handleLike(currentCard)}
-                    disabled={!!actionPending}
-                    className="w-20 h-20 rounded-full bg-[var(--matchup-primary)] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all disabled:opacity-50"
-                  >
-                    <i className="fa-solid fa-heart text-3xl" />
+                      onClick={() => handleDislike(currentCard)}
+                      disabled={!!actionPending || (limits !== null && limits.remaining === 0)}
+                      className="w-16 h-16 rounded-full border-2 border-red-500/50 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all disabled:opacity-50"
+                    >
+                      <i className="fa-solid fa-xmark text-2xl" />
+                    </button>
+                    <button
+                      onClick={() => handleLike(currentCard)}
+                      disabled={!!actionPending || (limits !== null && limits.remaining === 0)}
+                      className="w-20 h-20 rounded-full bg-[var(--matchup-primary)] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all disabled:opacity-50"
+                    >
+                      <i className="fa-solid fa-heart text-3xl" />
                   </button>
                 </div>
               </>
@@ -611,7 +724,113 @@ export default function Home() {
         </div>
       )}
 
+      {showLikedBy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in overflow-y-auto" onClick={() => setShowLikedBy(false)}>
+          <div className="card max-w-md w-full my-8 max-h-[85vh] overflow-hidden flex flex-col animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Seni beğenenler</h2>
+              <button onClick={() => setShowLikedBy(false)} className="text-[var(--matchup-text-muted)] hover:text-white text-2xl">&times;</button>
+            </div>
+            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Pro özelliği: Seni like eden profiller.</p>
+            <div className="overflow-y-auto flex-1 space-y-3 pr-1">
+              {loadingLikedBy ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto" />
+                </div>
+              ) : likedBy.length === 0 ? (
+                <p className="text-center text-[var(--matchup-text-muted)] py-6">Henüz seni beğenen yok.</p>
+              ) : (
+                likedBy.map((profile) => (
+                  <div key={profile.id} className="flex items-center gap-3 p-3 rounded-xl bg-[var(--matchup-bg-input)]">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--matchup-bg-card)]">
+                      {profile.photo_url ? (
+                        <img src={profile.photo_url} alt="" className="w-full h-full object-cover object-top" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[var(--matchup-text-muted)]"><i className="fa-solid fa-user" /></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{profile.first_name} {profile.last_name}</p>
+                      <p className="text-xs text-[var(--matchup-text-muted)]">{profile.age} · {getGenderLabel(profile.gender)}</p>
+                      {profile.description && <p className="text-xs text-[var(--matchup-text-muted)] truncate mt-0.5">{profile.description}</p>}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!selectedCharacter) return;
+                        try {
+                          const res = await fetch('/api/like', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ toApplicationId: profile.id, characterId: selectedCharacter.id }),
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            if (data.isMatch) {
+                              setShowMatchModal(profile);
+                              fetchMyData();
+                            }
+                            setLikedBy((prev) => prev.filter((p) => p.id !== profile.id));
+                            if (data.remaining !== undefined && limits) setLimits((l) => l ? { ...l, remaining: data.remaining, resetAt: data.resetAt || l.resetAt } : null);
+                          }
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                      className="btn-primary py-2 px-4 text-sm flex-shrink-0"
+                    >
+                      <i className="fa-solid fa-heart mr-1" /> Beğen
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in overflow-y-auto" onClick={() => setShowShop(false)}>
+          <div className="card max-w-md w-full my-8 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Mağaza</h2>
+              <button onClick={() => setShowShop(false)} className="text-[var(--matchup-text-muted)] hover:text-white text-2xl">&times;</button>
+            </div>
+            <p className="text-[var(--matchup-text-muted)] text-sm mb-6">Özellikler ve fiyatlar aşağıda. Ödeme GTA World banka ağ geçidi ile güvenli şekilde yapılır.</p>
+
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)]">
+                <h3 className="font-bold text-[var(--matchup-primary)] mb-1">MatchUp+</h3>
+                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">1 haftalık. Günlük 20 like/dislike hakkı (normal 10). 24 saatte bir yenilenir.</p>
+                <p className="text-lg font-bold mb-2">5.000$</p>
+                <button onClick={() => handleCheckout('plus')} disabled={!!checkoutPending} className="btn-primary text-sm py-2">Satın Al</button>
+              </div>
+              <div className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-primary)]/50">
+                <h3 className="font-bold text-[var(--matchup-primary)] mb-1">MatchUp Pro</h3>
+                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">1 haftalık. Sınırsız like/dislike. Seni beğenenleri görebilirsin.</p>
+                <p className="text-lg font-bold mb-1">İlk alımlara özel 12.000$</p>
+                <p className="text-xs text-[var(--matchup-text-muted)] mb-2">(Normal 20.000$)</p>
+                <button onClick={() => handleCheckout('pro')} disabled={!!checkoutPending} className="btn-primary text-sm py-2">Satın Al</button>
+              </div>
+              <div className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)]">
+                <h3 className="font-bold text-[var(--matchup-primary)] mb-1">Beni Öne Çıkart</h3>
+                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">24 saat boyunca uyumlu herkeste ilk 10'da görünürsün.</p>
+                <p className="text-lg font-bold mb-2">5.000$</p>
+                <button onClick={() => handleCheckout('boost')} disabled={!!checkoutPending} className="btn-primary text-sm py-2">Satın Al</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && <div className={`toast ${toast.type}`}>{toast.message}</div>}
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<main className="flex items-center justify-center py-20"><div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto" /></main>}>
+      <HomeContent />
+    </Suspense>
   );
 }

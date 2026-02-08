@@ -62,6 +62,14 @@ export async function GET(request: Request) {
 
     const excludeIds = new Set([myApplication.id, ...likedIds, ...dislikedIds, ...matchedIds]);
 
+    // Aktif boost’u olan application_id’ler (24 saat öne çıkanlar, herkeste ilk 10’da)
+    const now = new Date().toISOString();
+    const { data: boostedRows } = await supabase
+      .from('boosts')
+      .select('application_id')
+      .gt('expires_at', now);
+    const boostedIds = new Set((boostedRows ?? []).map((r: { application_id: string }) => r.application_id));
+
     // Tüm başvurular (kendim hariç)
     const { data: allApps, error: fetchError } = await supabase
       .from('applications')
@@ -75,14 +83,16 @@ export async function GET(request: Request) {
     }
 
     const candidates = (allApps ?? []) as Application[];
-    const possible: Application[] = [];
-
+    const compatible: Application[] = [];
     for (const app of candidates) {
       if (excludeIds.has(app.id)) continue;
       if (!isCompatible(myApplication.gender, myApplication.sexual_preference, app.gender, app.sexual_preference)) continue;
-      possible.push(app);
-      if (possible.length >= limit) break;
+      compatible.push(app);
     }
+    // Öne çıkanları ilk 10’da göster, sonra diğerleri
+    const boostedFirst = compatible.filter((a) => boostedIds.has(a.id));
+    const rest = compatible.filter((a) => !boostedIds.has(a.id));
+    const possible = [...boostedFirst.slice(0, 10), ...rest].slice(0, limit);
 
     return NextResponse.json({
       possibleMatches: possible,
