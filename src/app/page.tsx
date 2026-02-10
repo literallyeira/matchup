@@ -295,7 +295,7 @@ function HomeContent() {
       weight: String(userApplication.weight ?? ''),
       gender: userApplication.gender,
       sexualPreference: userApplication.sexual_preference,
-      phone: userApplication.phone,
+      phone: userApplication.phone ?? '',
       facebrowser: userApplication.facebrowser,
       description: userApplication.description,
       photoUrl: userApplication.photo_url,
@@ -549,8 +549,8 @@ function HomeContent() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">Telefon</label>
-                  <input type="tel" className="form-input" placeholder="555-1234" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} required />
+                  <label className="form-label">Telefon <span className="text-[var(--matchup-text-muted)] font-normal">(isteğe bağlı)</span></label>
+                  <input type="tel" className="form-input" placeholder="555-1234" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
                 </div>
                 <div>
                   <label className="form-label">Facebrowser</label>
@@ -775,9 +775,15 @@ function HomeContent() {
                   </div>
                   <div className="p-4 space-y-3">
                     <div className="flex gap-2 flex-wrap">
-                      <a href={`tel:${match.matchedWith.phone}`} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm">
-                        <i className="fa-solid fa-phone text-[var(--matchup-primary)]" /> {match.matchedWith.phone}
-                      </a>
+                      {match.matchedWith.phone ? (
+                        <a href={`tel:${match.matchedWith.phone}`} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm">
+                          <i className="fa-solid fa-phone text-[var(--matchup-primary)]" /> {match.matchedWith.phone}
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm text-[var(--matchup-text-muted)]">
+                          <i className="fa-solid fa-phone text-[var(--matchup-text-muted)]" /> Belirtilmedi
+                        </span>
+                      )}
                       <a href={`https://facebrowser-tr.gta.world/profile/${match.matchedWith.facebrowser}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm truncate max-w-[140px]">
                         <i className="fa-solid fa-at text-[var(--matchup-primary)]" /> {match.matchedWith.facebrowser}
                       </a>

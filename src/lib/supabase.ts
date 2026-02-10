@@ -13,7 +13,7 @@ export interface Application {
   weight?: number
   gender: string
   sexual_preference: string
-  phone: string
+  phone?: string | null
   facebrowser: string
   description: string
   photo_url: string

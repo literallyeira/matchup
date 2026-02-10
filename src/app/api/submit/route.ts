@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
             characterId, characterName
         } = body;
 
-        // Validate required fields
-        if (!firstName || !lastName || !age || !gender || !sexualPreference || !phone || !facebrowser || !description || !photoUrl) {
+        // Validate required fields (phone is optional)
+        if (!firstName || !lastName || !age || !gender || !sexualPreference || !facebrowser || !description || !photoUrl) {
             return NextResponse.json(
                 { error: 'Tüm alanlar doldurulmalıdır!' },
                 { status: 400 }
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
                 weight: weight ? parseInt(weight) : 0,
                 gender,
                 sexual_preference: sexualPreference,
-                phone,
+                phone: phone?.trim() || null,
                 facebrowser,
                 description,
                 photo_url: photoUrl,
