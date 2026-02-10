@@ -838,7 +838,7 @@ function HomeContent() {
                           <i className="fa-solid fa-phone text-[var(--matchup-text-muted)]" /> Belirtilmedi
                         </span>
                       )}
-                      <a href={`https://facebrowser-tr.gta.world/profile/${match.matchedWith.facebrowser}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm truncate max-w-[140px]">
+                      <a href={`https://facebrowser-tr.gta.world/${(match.matchedWith.facebrowser || '').replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm truncate max-w-[140px]">
                         <i className="fa-solid fa-at text-[var(--matchup-primary)]" /> {match.matchedWith.facebrowser}
                       </a>
                     </div>
