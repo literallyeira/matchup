@@ -225,7 +225,6 @@ export default function AdminPage() {
             } else setPaymentsList([]);
         } catch { setPaymentsList([]); }
         finally { setLoadingPayments(false); }
-        }
     };
 
     const handleSubChange = async () => {
