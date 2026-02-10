@@ -20,12 +20,16 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'applications' | 'matches'>('applications');
+    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments'>('applications');
     const [subModal, setSubModal] = useState<{ appId: string; name: string; currentTier: string } | null>(null);
     const [subTier, setSubTier] = useState('free');
     const [subDays, setSubDays] = useState(7);
     const [subLoading, setSubLoading] = useState(false);
     const [appSubs, setAppSubs] = useState<Record<string, { tier: string; expiresAt: string | null }>>({});
+    const [activeSubs, setActiveSubs] = useState<Array<{ application_id: string; tier: string; expires_at: string; first_name?: string; last_name?: string; character_name?: string }>>([]);
+    const [paymentsList, setPaymentsList] = useState<Array<{ id: string; application_id: string; product: string; amount: number; created_at?: string; first_name?: string; last_name?: string; character_name?: string }>>([]);
+    const [loadingSubs, setLoadingSubs] = useState(false);
+    const [loadingPayments, setLoadingPayments] = useState(false);
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -195,6 +199,35 @@ export default function AdminPage() {
         }
     };
 
+    const fetchActiveSubscriptionsList = async () => {
+        setLoadingSubs(true);
+        try {
+            const res = await fetch('/api/admin/subscriptions-list', {
+                headers: { Authorization: password || localStorage.getItem('adminPassword') || '' },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setActiveSubs(Array.isArray(data) ? data : []);
+            } else setActiveSubs([]);
+        } catch { setActiveSubs([]); }
+        finally { setLoadingSubs(false); }
+    };
+
+    const fetchPaymentsList = async () => {
+        setLoadingPayments(true);
+        try {
+            const res = await fetch('/api/admin/payments-list', {
+                headers: { Authorization: password || localStorage.getItem('adminPassword') || '' },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPaymentsList(Array.isArray(data) ? data : []);
+            } else setPaymentsList([]);
+        } catch { setPaymentsList([]); }
+        finally { setLoadingPayments(false); }
+        }
+    };
+
     const handleSubChange = async () => {
         if (!subModal) return;
         setSubLoading(true);
@@ -221,6 +254,16 @@ export default function AdminPage() {
         if (applications.length > 0 && isAuthenticated) fetchAllSubscriptions();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [applications.length, isAuthenticated]);
+
+    useEffect(() => {
+        if (activeTab === 'subscriptions' && isAuthenticated) fetchActiveSubscriptionsList();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
+    useEffect(() => {
+        if (activeTab === 'payments' && isAuthenticated) fetchPaymentsList();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
 
     const getSubLabel = (tier: string) => {
         if (tier === 'plus') return 'MatchUp+';
@@ -412,6 +455,24 @@ export default function AdminPage() {
                             }`}
                     >
                         <i className="fa-solid fa-heart mr-2"></i>Eşleşmeler ({matches.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('subscriptions')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'subscriptions'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-crown mr-2"></i>Aktif Üyelikler
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('payments')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'payments'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-receipt mr-2"></i>Ödemeler
                     </button>
                 </div>
 
@@ -703,6 +764,90 @@ export default function AdminPage() {
                                 </div>
                             ))
                         )}
+                    </div>
+                )}
+
+                {activeTab === 'subscriptions' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-crown mr-2 text-violet-400"></i>Aktif Üyelikler</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Süresi dolmamış abonelikler (Plus / Pro).</p>
+                            {loadingSubs ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : activeSubs.length === 0 ? (
+                                <p className="text-[var(--matchup-text-muted)] py-8 text-center">Aktif üyelik yok.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead>
+                                            <tr className="border-b border-[var(--matchup-border)]">
+                                                <th className="pb-3 pr-4 font-semibold">Profil</th>
+                                                <th className="pb-3 pr-4 font-semibold">Karakter</th>
+                                                <th className="pb-3 pr-4 font-semibold">Tier</th>
+                                                <th className="pb-3 pr-4 font-semibold">Bitiş</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {activeSubs.map((s) => (
+                                                <tr key={s.application_id} className="border-b border-[var(--matchup-border)]/50">
+                                                    <td className="py-3 pr-4">{s.first_name} {s.last_name}</td>
+                                                    <td className="py-3 pr-4 text-[var(--matchup-primary)]">{s.character_name || '-'}</td>
+                                                    <td className="py-3 pr-4">
+                                                        <span className={s.tier === 'pro' ? 'text-violet-400' : 'text-pink-400'}>
+                                                            {getSubLabel(s.tier)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 pr-4 text-[var(--matchup-text-muted)]">{formatDate(s.expires_at)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'payments' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-receipt mr-2 text-[var(--matchup-primary)]"></i>Ödemeler</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Tüm tamamlanan ödemeler (geçmiş).</p>
+                            {loadingPayments ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : paymentsList.length === 0 ? (
+                                <p className="text-[var(--matchup-text-muted)] py-8 text-center">Henüz ödeme kaydı yok.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead>
+                                            <tr className="border-b border-[var(--matchup-border)]">
+                                                <th className="pb-3 pr-4 font-semibold">Tarih</th>
+                                                <th className="pb-3 pr-4 font-semibold">Profil</th>
+                                                <th className="pb-3 pr-4 font-semibold">Karakter</th>
+                                                <th className="pb-3 pr-4 font-semibold">Ürün</th>
+                                                <th className="pb-3 pr-4 font-semibold">Tutar</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paymentsList.map((p) => (
+                                                <tr key={p.id} className="border-b border-[var(--matchup-border)]/50">
+                                                    <td className="py-3 pr-4 text-[var(--matchup-text-muted)]">{p.created_at ? formatDate(p.created_at) : '-'}</td>
+                                                    <td className="py-3 pr-4">{p.first_name} {p.last_name}</td>
+                                                    <td className="py-3 pr-4 text-[var(--matchup-primary)]">{p.character_name || '-'}</td>
+                                                    <td className="py-3 pr-4">{p.product === 'pro' ? 'MatchUp Pro' : p.product === 'plus' ? 'MatchUp+' : p.product === 'boost' ? 'Boost' : p.product}</td>
+                                                    <td className="py-3 pr-4 font-semibold text-[var(--matchup-primary)]">₺{p.amount}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

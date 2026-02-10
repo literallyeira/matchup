@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { OrdersSidebar } from "@/components/OrdersSidebar";
 
 const inter = Inter({
   subsets: ['latin'],
@@ -41,6 +42,7 @@ export default function RootLayout({
           <div className="flex-1 w-full">
             {children}
           </div>
+          <OrdersSidebar />
 
           {/* Global Footer */}
           <footer className="w-full py-8 px-6 border-t border-white/5 bg-[#0c0c0c]/80">
