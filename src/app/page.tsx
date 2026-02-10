@@ -327,12 +327,16 @@ function HomeContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.photoUrl) {
+    if (!selectedCharacter) {
+      showToast('Lütfen bir karakter seçin!', 'error');
+      return;
+    }
+    if (!formData.photoUrl?.trim()) {
       showToast('Lütfen bir fotoğraf linki girin!', 'error');
       return;
     }
-    if (!selectedCharacter) {
-      showToast('Lütfen bir karakter seçin!', 'error');
+    if (!formData.age?.trim() || !formData.gender || !formData.sexualPreference || !formData.facebrowser?.trim() || !formData.description?.trim()) {
+      showToast('Lütfen zorunlu alanları doldurun (telefon isteğe bağlıdır).', 'error');
       return;
     }
     setIsSubmitting(true);
@@ -501,7 +505,7 @@ function HomeContent() {
           </div>
           <div className="card animate-fade-in">
             <h2 className="text-2xl font-bold mb-6">{hasApplication ? 'Profili Düzenle' : 'Profil Oluştur'}</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               <div>
                 <label className="form-label">Fotoğraf Linki</label>
                 <input
