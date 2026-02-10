@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { supabase } from '@/lib/supabase';
+import { extendOrSetSubscription } from '@/lib/limits';
 
 const AUTH_KEY = process.env.GTAW_GATEWAY_AUTH_KEY!;
 const BASE_URL = process.env.NEXTAUTH_URL || 'https://matchup.icu';
@@ -62,17 +63,9 @@ export async function GET(request: Request) {
     const now = new Date();
 
     if (product === 'plus') {
-      const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      await supabase.from('subscriptions').upsert(
-        { application_id: appId, tier: 'plus', expires_at: expiresAt.toISOString() },
-        { onConflict: 'application_id' }
-      );
+      await extendOrSetSubscription(appId, 'plus', 7);
     } else if (product === 'pro') {
-      const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      await supabase.from('subscriptions').upsert(
-        { application_id: appId, tier: 'pro', expires_at: expiresAt.toISOString() },
-        { onConflict: 'application_id' }
-      );
+      await extendOrSetSubscription(appId, 'pro', 7);
     } else if (product === 'boost') {
       const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       await supabase.from('boosts').insert({

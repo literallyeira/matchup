@@ -36,6 +36,33 @@ export async function getSubscriptionExpiry(applicationId: string): Promise<stri
   return data.expires_at;
 }
 
+/** Üyelik süresini ekle: varsa ve aktifse bitiş tarihinden, yoksa/dolmuşsa şimdiden başlat. */
+export async function extendOrSetSubscription(
+  applicationId: string,
+  tier: 'plus' | 'pro',
+  daysToAdd: number
+): Promise<void> {
+  const now = new Date();
+  const { data: current } = await supabase
+    .from('subscriptions')
+    .select('expires_at')
+    .eq('application_id', applicationId)
+    .single();
+
+  let baseDate: Date;
+  if (current && new Date(current.expires_at) > now) {
+    baseDate = new Date(current.expires_at);
+  } else {
+    baseDate = now;
+  }
+
+  const newExpiresAt = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+  await supabase.from('subscriptions').upsert(
+    { application_id: applicationId, tier, expires_at: newExpiresAt.toISOString() },
+    { onConflict: 'application_id' }
+  );
+}
+
 /** Günlük limit: free 10, plus 20, pro sınırsız */
 function dailyLimitForTier(tier: Tier): number {
   if (tier === 'pro') return 999999;
