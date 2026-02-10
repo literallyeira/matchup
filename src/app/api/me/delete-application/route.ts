@@ -40,8 +40,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // İlişkili eşleşmeleri sil
-    await supabase.from('matches').or(`application_1_id.eq.${applicationId},application_2_id.eq.${applicationId}`).delete();
+    // İlişkili eşleşmeleri sil (application_1 veya application_2 bu profil olanlar)
+    await supabase.from('matches').delete().eq('application_1_id', applicationId);
+    await supabase.from('matches').delete().eq('application_2_id', applicationId);
     await supabase.from('subscriptions').delete().eq('application_id', applicationId);
     await supabase.from('boosts').delete().eq('application_id', applicationId);
     await supabase.from('daily_likes').delete().eq('application_id', applicationId);

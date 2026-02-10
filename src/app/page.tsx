@@ -87,6 +87,7 @@ function HomeContent() {
   const [checkoutPending, setCheckoutPending] = useState<string | null>(null);
   const [showLikedBy, setShowLikedBy] = useState(false);
   const [likedBy, setLikedBy] = useState<Application[]>([]);
+  const [likedByCount, setLikedByCount] = useState<number | null>(null);
   const [loadingLikedBy, setLoadingLikedBy] = useState(false);
   const [isDeletingProfile, setIsDeletingProfile] = useState(false);
 
@@ -134,6 +135,14 @@ function HomeContent() {
   useEffect(() => {
     if (hasApplication && selectedCharacter && !showForm) fetchLimits();
   }, [hasApplication, selectedCharacter, showForm, fetchLimits]);
+
+  useEffect(() => {
+    if (!hasApplication || !selectedCharacter || showForm) return;
+    fetch(`/api/liked-me?characterId=${selectedCharacter.id}`)
+      .then((r) => r.ok ? r.json() : { count: 0 })
+      .then((d) => setLikedByCount(d.count ?? 0))
+      .catch(() => setLikedByCount(0));
+  }, [hasApplication, selectedCharacter?.id, showForm]);
 
   useEffect(() => {
     const payment = searchParams.get('payment');
@@ -633,8 +642,10 @@ function HomeContent() {
       const res = await fetch(`/api/liked-me?characterId=${selectedCharacter?.id}`);
       const data = await res.json();
       setLikedBy(data.likedBy || []);
+      setLikedByCount(data.count ?? 0);
     } catch {
       setLikedBy([]);
+      setLikedByCount(0);
     } finally {
       setLoadingLikedBy(false);
     }
@@ -696,11 +707,9 @@ function HomeContent() {
 
           {/* Row 3: Action Buttons */}
           <div className="flex items-center gap-2">
-            {limits?.tier === 'pro' && (
-              <button onClick={openLikedBy} className="btn-secondary text-sm flex-1 whitespace-nowrap">
-                <i className="fa-solid fa-eye mr-1.5" /> Beğenenler
-              </button>
-            )}
+            <button onClick={openLikedBy} className="btn-secondary text-sm flex-1 whitespace-nowrap">
+              <i className="fa-solid fa-eye mr-1.5" /> Beğenenler{likedByCount != null && likedByCount > 0 ? ` (${likedByCount})` : ''}
+            </button>
             <button onClick={() => setShowShop(true)} className="btn-secondary text-sm flex-1 whitespace-nowrap">
               <i className="fa-solid fa-store mr-1.5" /> Mağaza
             </button>
@@ -883,6 +892,15 @@ function HomeContent() {
                 <div className="card text-center py-12">
                   <div className="animate-spin w-10 h-10 border-4 border-violet-400 border-t-transparent rounded-full mx-auto" />
                   <p className="mt-4 text-[var(--matchup-text-muted)]">Yükleniyor...</p>
+                </div>
+              ) : likedBy.length === 0 && (likedByCount ?? 0) > 0 ? (
+                <div className="card text-center py-12">
+                  <i className="fa-solid fa-heart text-5xl text-[var(--matchup-primary)] mb-4" />
+                  <h3 className="text-lg font-bold mb-1">{likedByCount} kişi seni beğendi</h3>
+                  <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Kim olduklarını görmek için MatchUp Pro&apos;ya geç.</p>
+                  <button onClick={() => { setShowLikedBy(false); setShowShop(true); }} className="btn-primary">
+                    <i className="fa-solid fa-crown mr-2" /> Pro&apos;ya Geç
+                  </button>
                 </div>
               ) : likedBy.length === 0 ? (
                 <div className="card text-center py-12">

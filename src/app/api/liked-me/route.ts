@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { getTier } from '@/lib/limits';
 import type { Application } from '@/lib/supabase';
 
-// GET - Beni like edenler (sadece Pro)
+// GET - Beni like edenler: Pro ise listeyi döner, değilse sadece sayı (kim olduğu gizli)
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
 
@@ -32,41 +32,32 @@ export async function GET(request: Request) {
     }
 
     const tier = await getTier(myApp.id);
-    if (tier !== 'pro') {
-      return NextResponse.json(
-        { error: 'Bu özellik sadece MatchUp Pro üyeleri içindir.', requiredTier: 'pro' },
-        { status: 403 }
-      );
-    }
 
-    // 4 bağımsız sorguyu paralel çalıştır (eskiden 4 sequential)
-    const [likesRes, matchesRes, dislikesRes, myLikesRes] = await Promise.all([
+    // Sorguları paralel çalıştır (matches için iki ayrı sorgu; .or() delete'te yok select'te kullanılabilir ama tutarlılık için iki sorgu)
+    const [likesRes, matches1, matches2, dislikesRes, myLikesRes] = await Promise.all([
       supabase.from('likes').select('from_application_id').eq('to_application_id', myApp.id),
-      supabase.from('matches').select('application_1_id, application_2_id').or(`application_1_id.eq.${myApp.id},application_2_id.eq.${myApp.id}`),
+      supabase.from('matches').select('application_1_id, application_2_id').eq('application_1_id', myApp.id),
+      supabase.from('matches').select('application_1_id, application_2_id').eq('application_2_id', myApp.id),
       supabase.from('dislikes').select('to_application_id').eq('from_application_id', myApp.id),
       supabase.from('likes').select('to_application_id').eq('from_application_id', myApp.id),
     ]);
 
     const fromIds = (likesRes.data ?? []).map((r: { from_application_id: string }) => r.from_application_id);
-    if (fromIds.length === 0) {
-      return NextResponse.json({ likedBy: [] });
-    }
-
-    // Eşleşmiş kişiler
     const matchedIds = new Set<string>();
-    (matchesRes.data ?? []).forEach((m: { application_1_id: string; application_2_id: string }) => {
-      if (m.application_1_id === myApp.id) matchedIds.add(m.application_2_id);
-      else matchedIds.add(m.application_1_id);
+    [...(matches1.data ?? []), ...(matches2.data ?? [])].forEach((m: { application_1_id: string; application_2_id: string }) => {
+      matchedIds.add(m.application_1_id === myApp.id ? m.application_2_id : m.application_1_id);
     });
-
-    // Reddettiğimiz + beğendiğimiz kişiler
     const dislikedIds = new Set((dislikesRes.data ?? []).map((d: { to_application_id: string }) => d.to_application_id));
     const likedIds = new Set((myLikesRes.data ?? []).map((l: { to_application_id: string }) => l.to_application_id));
-
-    // Filtrele: eşleşmiş, reddetmiş veya zaten beğenmiş olanları çıkar
     const filteredFromIds = fromIds.filter((id: string) => !matchedIds.has(id) && !dislikedIds.has(id) && !likedIds.has(id));
-    if (filteredFromIds.length === 0) {
-      return NextResponse.json({ likedBy: [] });
+    const count = filteredFromIds.length;
+
+    if (tier !== 'pro') {
+      return NextResponse.json({ count, likedBy: [] });
+    }
+
+    if (count === 0) {
+      return NextResponse.json({ count: 0, likedBy: [] });
     }
 
     const { data: apps } = await supabase
@@ -75,7 +66,7 @@ export async function GET(request: Request) {
       .in('id', filteredFromIds);
 
     const list = (apps ?? []) as Application[];
-    return NextResponse.json({ likedBy: list });
+    return NextResponse.json({ count, likedBy: list });
   } catch (error) {
     console.error('Liked-me error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
