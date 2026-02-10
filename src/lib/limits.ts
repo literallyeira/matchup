@@ -36,7 +36,9 @@ export async function getSubscriptionExpiry(applicationId: string): Promise<stri
   return data.expires_at;
 }
 
-/** Üyelik süresini ekle: varsa ve aktifse bitiş tarihinden, yoksa/dolmuşsa şimdiden başlat. */
+const TIER_ORDER: Record<string, number> = { free: 0, plus: 1, pro: 2 };
+
+/** Üyelik süresini ekle; üst düzey üyelik korunur (Pro varken Plus alırsa Pro kalır). */
 export async function extendOrSetSubscription(
   applicationId: string,
   tier: 'plus' | 'pro',
@@ -45,20 +47,26 @@ export async function extendOrSetSubscription(
   const now = new Date();
   const { data: current } = await supabase
     .from('subscriptions')
-    .select('expires_at')
+    .select('tier, expires_at')
     .eq('application_id', applicationId)
     .single();
 
   let baseDate: Date;
+  let effectiveTier: 'plus' | 'pro' = tier;
+
   if (current && new Date(current.expires_at) > now) {
     baseDate = new Date(current.expires_at);
+    const currentTier = (current.tier as string) || 'free';
+    if (TIER_ORDER[currentTier] > TIER_ORDER[tier]) {
+      effectiveTier = currentTier as 'pro';
+    }
   } else {
     baseDate = now;
   }
 
   const newExpiresAt = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
   await supabase.from('subscriptions').upsert(
-    { application_id: applicationId, tier, expires_at: newExpiresAt.toISOString() },
+    { application_id: applicationId, tier: effectiveTier, expires_at: newExpiresAt.toISOString() },
     { onConflict: 'application_id' }
   );
 }
