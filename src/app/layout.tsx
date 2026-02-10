@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import { Providers } from "./providers";
-import { OrdersSidebar } from "@/components/OrdersSidebar";
-
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
@@ -42,7 +41,6 @@ export default function RootLayout({
           <div className="flex-1 w-full">
             {children}
           </div>
-          <OrdersSidebar />
 
           {/* Global Footer */}
           <footer className="w-full py-8 px-6 border-t border-white/5 bg-[#0c0c0c]/80">
@@ -59,6 +57,10 @@ export default function RootLayout({
                     />
                   </a>
                   <div className="flex items-center gap-6">
+                    <Link href="/siparislerim" className="flex items-center gap-2 text-gray-500 hover:text-[var(--matchup-primary)] transition-colors">
+                      <i className="fa-solid fa-receipt text-lg"></i>
+                      <span>Siparişlerim</span>
+                    </Link>
                     <a href="https://discord.gg/gtaworldtr" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-500 hover:text-[#5865F2] transition-colors">
                       <i className="fa-brands fa-discord text-lg"></i>
                       <span>Discord</span>
