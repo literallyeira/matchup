@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { consumeLikeSlot } from '@/lib/limits';
 
-// POST - Dislike: bu profili tekrar gösterme
+// POST - Dislike: bu profili tekrar gösterme (hak düşmez, sadece like hakkı düşer)
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
 
@@ -39,20 +38,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Geçersiz' }, { status: 400 });
     }
 
-    const limitResult = await consumeLikeSlot(fromId);
-    if (!limitResult.ok) {
-      return NextResponse.json(
-        { error: 'Günlük like/dislike hakkınız doldu. 24 saat sonra yenilenecek.', remaining: 0, resetAt: limitResult.resetAt },
-        { status: 429 }
-      );
-    }
-
     await supabase.from('dislikes').upsert(
       { from_application_id: fromId, to_application_id: toApplicationId },
       { onConflict: 'from_application_id,to_application_id' }
     );
 
-    return NextResponse.json({ success: true, remaining: limitResult.remaining, resetAt: limitResult.resetAt });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Dislike error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

@@ -88,6 +88,7 @@ function HomeContent() {
   const [showLikedBy, setShowLikedBy] = useState(false);
   const [likedBy, setLikedBy] = useState<Application[]>([]);
   const [loadingLikedBy, setLoadingLikedBy] = useState(false);
+  const [isDeletingProfile, setIsDeletingProfile] = useState(false);
 
   const [testMode, setTestMode] = useState(false);
   const [testModeLoggedIn, setTestModeLoggedIn] = useState(false);
@@ -374,6 +375,34 @@ function HomeContent() {
     }
   };
 
+  const handleDeleteProfile = async () => {
+    if (!userApplication?.id || !selectedCharacter) return;
+    if (!confirm('Profilinizi kalıcı olarak silmek istediğinize emin misiniz? Eşleşmeler ve üyelik bilgisi de kaldırılacaktır.')) return;
+    setIsDeletingProfile(true);
+    try {
+      const res = await fetch('/api/me/delete-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId: userApplication.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Profiliniz silindi.', 'success');
+        setHasApplication(false);
+        setUserApplication(null);
+        setShowForm(false);
+        setMatches((prev) => prev.filter((m) => m.myApplicationId !== userApplication.id));
+        setLimits(null);
+      } else {
+        showToast(data.error || 'Profil silinirken hata oluştu.', 'error');
+      }
+    } catch {
+      showToast('Bağlantı hatası.', 'error');
+    } finally {
+      setIsDeletingProfile(false);
+    }
+  };
+
   const handleCheckout = async (product: 'plus' | 'pro' | 'boost') => {
     if (!selectedCharacter) return;
     setCheckoutPending(product);
@@ -575,6 +604,18 @@ function HomeContent() {
                   <><i className="fa-solid fa-heart-circle-check mr-2" />{hasApplication ? 'Güncelle' : 'Profil Oluştur'}</>
                 )}
               </button>
+              {hasApplication && (
+                <div className="mt-6 pt-6 border-t border-[var(--matchup-border)]">
+                  <button
+                    type="button"
+                    onClick={handleDeleteProfile}
+                    disabled={isDeletingProfile}
+                    className="w-full py-2.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-sm font-medium disabled:opacity-50"
+                  >
+                    {isDeletingProfile ? 'Siliniyor...' : <><i className="fa-solid fa-trash mr-2" />Profili Sil</>}
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>

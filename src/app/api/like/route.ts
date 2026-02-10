@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const limitResult = await consumeLikeSlot(fromId);
     if (!limitResult.ok) {
       return NextResponse.json(
-        { error: 'Günlük like/dislike hakkınız doldu. 24 saat sonra yenilenecek.', remaining: 0, resetAt: limitResult.resetAt },
+        { error: 'Günlük like hakkınız doldu. 24 saat sonra yenilenecek.', remaining: 0, resetAt: limitResult.resetAt },
         { status: 429 }
       );
     }
