@@ -17,6 +17,9 @@ export interface Application {
   facebrowser: string
   description: string
   photo_url: string
+  extra_photos?: string[]
+  prompts?: Record<string, string>
+  is_verified?: boolean
   created_at: string
   gtaw_user_id?: number
   character_id?: number

@@ -80,6 +80,15 @@ export async function GET(request: Request) {
     const rest = compatible.filter((a) => !boostedIds.has(a.id));
     const possible = [...boostedFirst.slice(0, 10), ...rest].slice(0, limit);
 
+    // Profil görüntülenme kaydı (ilk 5 için, arka planda)
+    if (possible.length > 0) {
+      const viewRecords = possible.slice(0, 5).map(p => ({
+        viewer_application_id: myApplication.id,
+        viewed_application_id: p.id,
+      }));
+      supabase.from('profile_views').insert(viewRecords).then(() => {});
+    }
+
     return NextResponse.json({
       possibleMatches: possible,
       hasApplication: true,

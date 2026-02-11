@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { Application } from '@/lib/supabase';
+import { PROFILE_PROMPTS } from '@/lib/prompts';
 
 interface Character {
   id: number;
@@ -87,6 +88,8 @@ function HomeContent() {
   const [checkoutPending, setCheckoutPending] = useState<string | null>(null);
   const [likedByCount, setLikedByCount] = useState<number | null>(null);
   const [isDeletingProfile, setIsDeletingProfile] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [spotlight, setSpotlight] = useState<Application | null>(null);
 
   const [testMode, setTestMode] = useState(false);
   const [testModeLoggedIn, setTestModeLoggedIn] = useState(false);
@@ -102,6 +105,8 @@ function HomeContent() {
     facebrowser: '',
     description: '',
     photoUrl: '',
+    extraPhotos: ['', '', '', ''] as string[],
+    prompts: {} as Record<string, string>,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -231,7 +236,14 @@ function HomeContent() {
   }, [selectedCharacter, session?.user?.gtawId, testMode, fetchMyData]);
 
   useEffect(() => {
-    if (hasApplication && activeTab === 'discover' && !showForm) fetchPossibleMatches();
+    if (hasApplication && activeTab === 'discover' && !showForm) {
+      fetchPossibleMatches();
+      // Günün profili
+      fetch('/api/spotlight')
+        .then(r => r.ok ? r.json() : { spotlight: null })
+        .then(d => setSpotlight(d.spotlight))
+        .catch(() => {});
+    }
   }, [hasApplication, activeTab, showForm, fetchPossibleMatches]);
 
   // Eşleşmeler sekmesine geçince listeyi anlık güncelle
@@ -256,6 +268,7 @@ function HomeContent() {
       const data = await res.json();
       if (res.ok) {
         setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
+        setCurrentPhotoIndex(0);
         if (data.remaining !== undefined && limits) setLimits((l) => l ? { ...l, remaining: data.remaining, resetAt: data.resetAt || l.resetAt } : null);
         if (data.isMatch) {
           setShowMatchModal(profile);
@@ -284,6 +297,7 @@ function HomeContent() {
       });
       const data = res.ok ? await res.json() : {};
       setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
+      setCurrentPhotoIndex(0);
       if (data.remaining !== undefined && limits) setLimits((l) => l ? { ...l, remaining: data.remaining, resetAt: data.resetAt || l.resetAt } : null);
       if (!res.ok && res.status === 429) showToast('Günlük hakkınız doldu.', 'error');
     } catch {
@@ -295,6 +309,8 @@ function HomeContent() {
 
   const startEditing = () => {
     if (!userApplication) return;
+    const existingPhotos = Array.isArray(userApplication.extra_photos) ? userApplication.extra_photos : [];
+    const padded = [...existingPhotos, '', '', '', ''].slice(0, 4);
     setFormData({
       firstName: userApplication.first_name,
       lastName: userApplication.last_name,
@@ -306,6 +322,8 @@ function HomeContent() {
       facebrowser: userApplication.facebrowser,
       description: userApplication.description,
       photoUrl: userApplication.photo_url,
+      extraPhotos: padded,
+      prompts: userApplication.prompts || {},
     });
     setShowForm(true);
   };
@@ -361,6 +379,7 @@ function HomeContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          extraPhotos: formData.extraPhotos.filter(u => u.trim()),
           firstName: selectedCharacter.firstname,
           lastName: selectedCharacter.lastname,
           characterId: selectedCharacter.id,
@@ -557,6 +576,34 @@ function HomeContent() {
                   </div>
                 )}
               </div>
+              {/* Ek Fotoğraflar */}
+              <div>
+                <label className="form-label">Ek Fotoğraflar <span className="text-[var(--matchup-text-muted)] font-normal">(isteğe bağlı, maks 4)</span></label>
+                <div className="space-y-2">
+                  {formData.extraPhotos.map((url, i) => (
+                    <input
+                      key={i}
+                      type="url"
+                      className="form-input text-sm"
+                      placeholder={`Fotoğraf ${i + 2} linki (https://...)`}
+                      value={url}
+                      onChange={(e) => {
+                        const updated = [...formData.extraPhotos];
+                        updated[i] = e.target.value;
+                        setFormData({ ...formData, extraPhotos: updated });
+                      }}
+                    />
+                  ))}
+                </div>
+                {formData.extraPhotos.some(u => u.trim()) && (
+                  <div className="flex gap-2 mt-2 overflow-x-auto">
+                    {formData.extraPhotos.filter(u => u.trim()).map((url, i) => (
+                      <img key={i} src={url} alt={`Ek ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-[var(--matchup-border)]" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Yaş</label>
@@ -600,6 +647,27 @@ function HomeContent() {
                 <label className="form-label">Kendini Tanıt</label>
                 <textarea className="form-input min-h-[120px] resize-none" placeholder="Kendinden bahset..." value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} required />
               </div>
+
+              {/* Profil Promptları */}
+              <div>
+                <label className="form-label">Profil Soruları <span className="text-[var(--matchup-text-muted)] font-normal">(isteğe bağlı)</span></label>
+                <p className="text-[var(--matchup-text-muted)] text-xs mb-3">Doldurduğun sorular profilinde görünür. Boş bıraktıkların gizlenir.</p>
+                <div className="space-y-3">
+                  {PROFILE_PROMPTS.map((prompt) => (
+                    <div key={prompt.key}>
+                      <label className="text-xs text-[var(--matchup-text-muted)] mb-1 block">{prompt.label}</label>
+                      <input
+                        type="text"
+                        className="form-input text-sm"
+                        placeholder={prompt.placeholder}
+                        value={formData.prompts[prompt.key] || ''}
+                        onChange={(e) => setFormData({ ...formData, prompts: { ...formData.prompts, [prompt.key]: e.target.value } })}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <button type="submit" className="btn-primary mt-8" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">
@@ -631,6 +699,7 @@ function HomeContent() {
   }
 
   const currentCard = possibleMatches[0];
+  const allPhotos = currentCard ? [currentCard.photo_url, ...(currentCard.extra_photos || []).filter(Boolean)] : [];
 
   return (
     <main className="py-6 px-4 pb-24">
@@ -694,6 +763,9 @@ function HomeContent() {
             <button onClick={() => setShowShop(true)} className="btn-secondary text-sm flex-1 whitespace-nowrap">
               <i className="fa-solid fa-store mr-1.5" /> Mağaza
             </button>
+            <Link href="/istatistikler" className="btn-secondary text-sm flex-1 whitespace-nowrap text-center">
+              <i className="fa-solid fa-chart-simple mr-1.5" /> İstatistik
+            </Link>
             <button onClick={startEditing} className="btn-secondary text-sm flex-1 whitespace-nowrap">
               <i className="fa-solid fa-user-pen mr-1.5" /> Profil
             </button>
@@ -718,6 +790,37 @@ function HomeContent() {
 
         {activeTab === 'discover' && (
           <div className="min-h-[500px] flex flex-col items-center justify-center">
+            {/* Günün Profili */}
+            {spotlight && !isLoadingPossible && currentCard && spotlight.id !== currentCard.id && (
+              <div className="w-full mb-4 animate-fade-in">
+                <div className="flex items-center gap-2 mb-2">
+                  <i className="fa-solid fa-fire text-orange-400 text-sm"></i>
+                  <span className="text-xs font-semibold text-orange-400 uppercase tracking-wider">Günün Profili</span>
+                </div>
+                <div className="relative rounded-2xl overflow-hidden border border-orange-500/20 shadow-lg shadow-orange-500/5">
+                  <div className="flex items-center gap-3 p-3 bg-white/5">
+                    {spotlight.photo_url && (
+                      <img src={spotlight.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-orange-400/50" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{spotlight.first_name} {spotlight.last_name}</p>
+                      <p className="text-xs text-gray-400">{spotlight.age} · {getGenderLabel(spotlight.gender)}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!possibleMatches.find(p => p.id === spotlight.id)) {
+                          setPossibleMatches(prev => [spotlight, ...prev]);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-400 text-xs font-medium hover:bg-orange-500/20 transition-all"
+                    >
+                      <i className="fa-solid fa-eye mr-1"></i>Profili Gör
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isLoadingPossible ? (
               <div className="text-center py-12">
                 <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto" />
@@ -734,15 +837,39 @@ function HomeContent() {
               <>
                 <div className="w-full animate-fade-in rounded-3xl overflow-hidden shadow-2xl">
                   <div className="relative w-full aspect-[4/5] overflow-hidden">
-                    {currentCard.photo_url ? (
-                      <img src={currentCard.photo_url} alt="" className="w-full h-full object-cover object-top" />
+                    {allPhotos.length > 0 ? (
+                      <img src={allPhotos[currentPhotoIndex] || currentCard.photo_url} alt="" className="w-full h-full object-cover object-top transition-all duration-300" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-[var(--matchup-primary)] to-purple-600 flex items-center justify-center">
                         <i className="fa-solid fa-user text-6xl text-white/50" />
                       </div>
                     )}
+
+                    {/* Fotoğraf navigasyonu */}
+                    {allPhotos.length > 1 && (
+                      <>
+                        {/* Dot indicators */}
+                        <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+                          {allPhotos.map((_, i) => (
+                            <div key={i} className={`h-1 rounded-full transition-all ${i === currentPhotoIndex ? 'bg-white w-6' : 'bg-white/40 w-4'}`} />
+                          ))}
+                        </div>
+                        {/* Tıklama alanları - sol/sağ */}
+                        <div className="absolute inset-0 flex z-[5]">
+                          <div className="w-1/2 h-full cursor-pointer" onClick={() => setCurrentPhotoIndex(Math.max(0, currentPhotoIndex - 1))} />
+                          <div className="w-1/2 h-full cursor-pointer" onClick={() => setCurrentPhotoIndex(Math.min(allPhotos.length - 1, currentPhotoIndex + 1))} />
+                        </div>
+                      </>
+                    )}
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 pt-20 pb-5 px-5">
+                      {/* Rozetler */}
+                      {currentCard.is_verified && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-medium mb-2">
+                          <i className="fa-solid fa-circle-check" /> Doğrulanmış
+                        </span>
+                      )}
                       <h3 className="text-2xl font-bold text-white drop-shadow-lg">
                         {currentCard.first_name} {currentCard.last_name}
                       </h3>
@@ -754,6 +881,18 @@ function HomeContent() {
                       )}
                     </div>
                   </div>
+
+                  {/* Prompt cevapları - kartın altında */}
+                  {currentCard.prompts && Object.keys(currentCard.prompts).length > 0 && (
+                    <div className="bg-[var(--matchup-bg-card)] px-5 py-4 space-y-3">
+                      {PROFILE_PROMPTS.filter(p => currentCard.prompts?.[p.key]?.trim()).map(p => (
+                        <div key={p.key}>
+                          <p className="text-[var(--matchup-text-muted)] text-[11px] font-medium uppercase tracking-wide">{p.label}</p>
+                          <p className="text-sm text-white/90 mt-0.5">{currentCard.prompts![p.key]}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {limits?.remaining === 0 && (
                   <p className="text-center text-[var(--matchup-text-muted)] text-sm mt-4">Günlük hakkınız doldu. 24 saat sonra yenilenecek veya Mağaza'dan daha fazla hak alabilirsiniz.</p>

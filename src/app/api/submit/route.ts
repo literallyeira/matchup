@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
         const {
             firstName, lastName, age, weight, gender, sexualPreference,
-            phone, facebrowser, description, photoUrl,
+            phone, facebrowser, description, photoUrl, extraPhotos, prompts,
             characterId, characterName
         } = body;
 
@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
                 gtaw_user_id: session.user.gtawId,
                 character_id: characterId,
                 character_name: characterName,
+                extra_photos: Array.isArray(extraPhotos) ? extraPhotos.filter((u: string) => u?.trim()).slice(0, 4) : [],
+                prompts: typeof prompts === 'object' && prompts ? Object.fromEntries(Object.entries(prompts).filter(([, v]) => (v as string)?.trim())) : {},
                 updated_at: new Date().toISOString()
             }, {
                 onConflict: 'gtaw_user_id,character_id'
