@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import type { Application } from '@/lib/supabase';
 import { PROFILE_PROMPTS } from '@/lib/prompts';
 import { getInlineBadges } from '@/lib/badges-client';
+import { PhotoSlider } from '@/components/PhotoSlider';
 
 interface Character {
   id: number;
@@ -71,31 +72,10 @@ function getTierColor(tier: string): string {
 
 function MatchPhotoGallery({ photos, children }: { photos: string[]; children: React.ReactNode }) {
   const [idx, setIdx] = useState(0);
-  const safeIdx = Math.min(idx, photos.length - 1);
   return (
-    <div className="relative w-full aspect-[4/5] overflow-hidden">
-      {photos.length > 0 ? (
-        <img src={photos[safeIdx]} alt="" className="w-full h-full object-cover object-top transition-all duration-300" />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-[var(--matchup-primary)] to-purple-600 flex items-center justify-center">
-          <i className="fa-solid fa-user text-4xl text-white/50" />
-        </div>
-      )}
-      {photos.length > 1 && (
-        <>
-          <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 z-10">
-            {photos.map((_, i) => (
-              <div key={i} className={`h-1 rounded-full transition-all ${i === safeIdx ? 'bg-white w-6' : 'bg-white/40 w-4'}`} />
-            ))}
-          </div>
-          <div className="absolute inset-0 flex z-[5]">
-            <div className="w-1/2 h-full cursor-pointer" onClick={() => setIdx(Math.max(0, safeIdx - 1))} />
-            <div className="w-1/2 h-full cursor-pointer" onClick={() => setIdx(Math.min(photos.length - 1, safeIdx + 1))} />
-          </div>
-        </>
-      )}
+    <PhotoSlider photos={photos} value={idx} onChange={setIdx} aspectClass="aspect-[4/5]">
       {children}
-    </div>
+    </PhotoSlider>
   );
 }
 
@@ -867,33 +847,14 @@ function HomeContent() {
             ) : (
               <>
                 <div className="w-full animate-fade-in rounded-3xl overflow-hidden shadow-2xl">
-                  <div className="relative w-full aspect-[4/5] overflow-hidden">
-                    {allPhotos.length > 0 ? (
-                      <img src={allPhotos[currentPhotoIndex] || currentCard.photo_url} alt="" className="w-full h-full object-cover object-top transition-all duration-300" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[var(--matchup-primary)] to-purple-600 flex items-center justify-center">
-                        <i className="fa-solid fa-user text-6xl text-white/50" />
-                      </div>
-                    )}
-
-                    {/* Fotoğraf navigasyonu */}
-                    {allPhotos.length > 1 && (
-                      <>
-                        {/* Dot indicators */}
-                        <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 z-10">
-                          {allPhotos.map((_, i) => (
-                            <div key={i} className={`h-1 rounded-full transition-all ${i === currentPhotoIndex ? 'bg-white w-6' : 'bg-white/40 w-4'}`} />
-                          ))}
-                        </div>
-                        {/* Tıklama alanları - sol/sağ */}
-                        <div className="absolute inset-0 flex z-[5]">
-                          <div className="w-1/2 h-full cursor-pointer" onClick={() => setCurrentPhotoIndex(Math.max(0, currentPhotoIndex - 1))} />
-                          <div className="w-1/2 h-full cursor-pointer" onClick={() => setCurrentPhotoIndex(Math.min(allPhotos.length - 1, currentPhotoIndex + 1))} />
-                        </div>
-                      </>
-                    )}
-
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                  <PhotoSlider
+                    photos={allPhotos}
+                    value={currentPhotoIndex}
+                    onChange={setCurrentPhotoIndex}
+                    aspectClass="aspect-[4/5]"
+                    emptyIcon={<i className="fa-solid fa-user text-6xl text-white/50" />}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none" />
                     <div className="absolute bottom-0 left-0 right-0 pt-20 pb-5 px-5">
                       {/* Rozetler */}
                       {(() => {
@@ -918,7 +879,7 @@ function HomeContent() {
                         <p className="text-white/60 text-sm mt-2 line-clamp-3">{currentCard.description}</p>
                       )}
                     </div>
-                  </div>
+                  </PhotoSlider>
 
                   {/* Prompt cevapları - kartın altında */}
                   {currentCard.prompts && Object.keys(currentCard.prompts).length > 0 && (

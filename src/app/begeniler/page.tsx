@@ -7,6 +7,7 @@ import Image from 'next/image';
 import type { Application } from '@/lib/supabase';
 import { PROFILE_PROMPTS } from '@/lib/prompts';
 import { getInlineBadges } from '@/lib/badges-client';
+import { PhotoSlider } from '@/components/PhotoSlider';
 
 interface Character {
   id: number;
@@ -30,6 +31,7 @@ export default function BegenilerPage() {
   const [loading, setLoading] = useState(true);
   const [tier, setTier] = useState<string>('free');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [photoIndices, setPhotoIndices] = useState<Record<string, number>>({});
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -205,9 +207,42 @@ export default function BegenilerPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {likedBy.map((profile) => (
+            {likedBy.map((profile) => {
+              const profilePhotos = [profile.photo_url, ...(profile.extra_photos || [])].filter(Boolean);
+              const hasMultiple = profilePhotos.length > 1;
+              return (
               <div key={profile.id} className="rounded-3xl overflow-hidden shadow-2xl bg-[var(--matchup-bg-card)] animate-fade-in">
                 {/* Photo */}
+                {hasMultiple ? (
+                  <PhotoSlider
+                    photos={profilePhotos}
+                    value={photoIndices[profile.id] ?? 0}
+                    onChange={(i) => setPhotoIndices(prev => ({ ...prev, [profile.id]: i }))}
+                    aspectClass="aspect-[3/2]"
+                    emptyIcon={<i className="fa-solid fa-user text-4xl text-white/40" />}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
+                      {(() => {
+                        const badges = getInlineBadges(profile);
+                        return badges.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {badges.map(b => (
+                              <span key={b.key} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium ${b.colorClass}`}>
+                                <i className={`fa-solid ${b.icon}`} style={{ fontSize: '8px' }} /> {b.label}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
+                    <h3 className="text-xl font-bold text-white">{profile.first_name} {profile.last_name}</h3>
+                    <p className="text-white/80 text-sm">{profile.age} · {getGenderLabel(profile.gender)}</p>
+                    {profile.description && (
+                      <p className="text-white/60 text-sm mt-1 line-clamp-2">{profile.description}</p>
+                    )}
+                  </div>
+                  </PhotoSlider>
+                ) : (
                 <div className="relative w-full aspect-[3/2] overflow-hidden">
                   {profile.photo_url ? (
                     <img src={profile.photo_url} alt="" className="w-full h-full object-cover object-top" />
@@ -238,6 +273,7 @@ export default function BegenilerPage() {
                     )}
                   </div>
                 </div>
+                )}
                 {/* Promptlar */}
                 {profile.prompts && Object.keys(profile.prompts).filter(k => profile.prompts?.[k]?.trim()).length > 0 && (
                   <div className="px-4 pt-3 pb-2 space-y-2">
@@ -265,7 +301,7 @@ export default function BegenilerPage() {
                   </button>
                 </div>
               </div>
-            ))}
+            ); })}
           </div>
         )}
       </div>
