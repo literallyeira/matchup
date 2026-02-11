@@ -311,7 +311,7 @@ function HomeContent() {
         setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
         setCurrentPhotoIndex(0);
       }
-      if (data.remaining !== undefined && limits) setLimits((l) => l ? { ...l, remaining: data.remaining, resetAt: data.resetAt || l.resetAt } : null);
+      // Dislike hak düşürmez, limits güncellemesi yapmıyoruz
       if (!res.ok && res.status === 429) showToast('Günlük hakkınız doldu.', 'error');
       if (!res.ok && res.status !== 429) showToast('Dislike kaydedilemedi, tekrar dene.', 'error');
     } catch {
@@ -902,7 +902,7 @@ function HomeContent() {
                 <div className="flex items-center justify-center gap-8 mt-8">
                   <button
                       onClick={() => handleDislike(currentCard)}
-                      disabled={!!actionPending || (limits !== null && limits.remaining === 0)}
+                      disabled={!!actionPending}
                       className="w-18 h-18 rounded-full border-2 border-red-500/50 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all disabled:opacity-50"
                     >
                       <i className="fa-solid fa-xmark text-2xl" />
