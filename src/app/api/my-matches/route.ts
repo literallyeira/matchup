@@ -41,11 +41,13 @@ export async function GET(request: Request) {
         application_2_id,
         application_1:applications!matches_application_1_id_fkey(
           id, first_name, last_name, age, gender, sexual_preference,
-          phone, facebrowser, description, photo_url, character_name
+          phone, facebrowser, description, photo_url, character_name,
+          extra_photos, prompts, is_verified, created_at
         ),
         application_2:applications!matches_application_2_id_fkey(
           id, first_name, last_name, age, gender, sexual_preference,
-          phone, facebrowser, description, photo_url, character_name
+          phone, facebrowser, description, photo_url, character_name,
+          extra_photos, prompts, is_verified, created_at
         )
       `)
             .or(`application_1_id.eq.${myApplication.id},application_2_id.eq.${myApplication.id}`);
