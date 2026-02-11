@@ -40,9 +40,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // İlişkili eşleşmeleri sil (application_1 veya application_2 bu profil olanlar)
+    // İlişkili tüm verileri sil
     await supabase.from('matches').delete().eq('application_1_id', applicationId);
     await supabase.from('matches').delete().eq('application_2_id', applicationId);
+    await supabase.from('likes').delete().eq('from_application_id', applicationId);
+    await supabase.from('likes').delete().eq('to_application_id', applicationId);
+    await supabase.from('dislikes').delete().eq('from_application_id', applicationId);
+    await supabase.from('dislikes').delete().eq('to_application_id', applicationId);
+    await supabase.from('profile_views').delete().eq('viewer_application_id', applicationId);
+    await supabase.from('profile_views').delete().eq('viewed_application_id', applicationId);
     await supabase.from('subscriptions').delete().eq('application_id', applicationId);
     await supabase.from('boosts').delete().eq('application_id', applicationId);
     await supabase.from('daily_likes').delete().eq('application_id', applicationId);
