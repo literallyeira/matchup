@@ -12,16 +12,24 @@ interface Ad {
 }
 
 function AdSlot({ ad, side }: { ad: Ad | null; side: 'left' | 'right' }) {
+  // Banner'ı, ana içerik (yaklaşık 700px) ile ekran kenarı arasındaki boşluğun ortasına konumla
+  const positionStyle = {
+    [side]: 'calc((100vw - 700px) / 4 - 100px)',
+  };
+
   if (ad) {
     return (
-      <div className={`fixed ${side === 'left' ? 'left-0' : 'right-0'} top-0 z-40 hidden xl:flex items-center h-screen`}>
+      <div
+        className="fixed top-0 z-40 hidden xl:flex items-center h-screen"
+        style={positionStyle}
+      >
         <a
           href={ad.link_url}
           target="_blank"
           rel="noopener noreferrer"
           className="block group"
         >
-          <div className={`relative w-[200px] ${side === 'left' ? 'ml-4' : 'mr-4'}`}>
+          <div className="relative w-[200px]">
             <div className="rounded-2xl overflow-hidden border border-white/10 shadow-lg shadow-black/50 transition-all duration-300 group-hover:border-pink-500/30 group-hover:shadow-pink-500/10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -42,9 +50,12 @@ function AdSlot({ ad, side }: { ad: Ad | null; side: 'left' | 'right' }) {
 
   // Boş alan - placeholder
   return (
-    <div className={`fixed ${side === 'left' ? 'left-0' : 'right-0'} top-0 z-40 hidden xl:flex items-center h-screen`}>
+    <div
+      className="fixed top-0 z-40 hidden xl:flex items-center h-screen"
+      style={positionStyle}
+    >
       <Link href="/reklam" className="block group">
-        <div className={`relative w-[200px] ${side === 'left' ? 'ml-4' : 'mr-4'}`}>
+        <div className="relative w-[200px]">
           <div className="rounded-2xl border border-dashed border-white/10 h-[500px] flex flex-col items-center justify-center gap-3 transition-all duration-300 group-hover:border-pink-500/30 group-hover:bg-pink-500/5 cursor-pointer">
             <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-pink-500/10 transition-all">
               <i className="fa-solid fa-rectangle-ad text-xl text-gray-600 group-hover:text-pink-400 transition-colors"></i>
