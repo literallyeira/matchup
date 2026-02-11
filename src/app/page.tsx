@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { Application } from '@/lib/supabase';
 import { PROFILE_PROMPTS } from '@/lib/prompts';
+import { getInlineBadges } from '@/lib/badges-client';
 
 interface Character {
   id: number;
@@ -790,8 +791,8 @@ function HomeContent() {
 
         {activeTab === 'discover' && (
           <div className="min-h-[500px] flex flex-col items-center justify-center">
-            {/* Günün Profili */}
-            {spotlight && !isLoadingPossible && currentCard && spotlight.id !== currentCard.id && (
+            {/* Günün Profili - eşleşmiş kişileri gösterme */}
+            {spotlight && !isLoadingPossible && currentCard && spotlight.id !== currentCard.id && !matches.some(m => m.matchedWith.id === spotlight.id) && (
               <div className="w-full mb-4 animate-fade-in">
                 <div className="flex items-center gap-2 mb-2">
                   <i className="fa-solid fa-fire text-orange-400 text-sm"></i>
@@ -865,11 +866,18 @@ function HomeContent() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 pt-20 pb-5 px-5">
                       {/* Rozetler */}
-                      {currentCard.is_verified && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-medium mb-2">
-                          <i className="fa-solid fa-circle-check" /> Doğrulanmış
-                        </span>
-                      )}
+                      {(() => {
+                        const badges = getInlineBadges(currentCard);
+                        return badges.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {badges.map(b => (
+                              <span key={b.key} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${b.colorClass}`}>
+                                <i className={`fa-solid ${b.icon}`} style={{ fontSize: '9px' }} /> {b.label}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
                       <h3 className="text-2xl font-bold text-white drop-shadow-lg">
                         {currentCard.first_name} {currentCard.last_name}
                       </h3>
@@ -943,10 +951,34 @@ function HomeContent() {
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 pt-12 pb-3 px-4">
+                      {/* Rozetler */}
+                      {(() => {
+                        const badges = getInlineBadges(match.matchedWith);
+                        return badges.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {badges.map(b => (
+                              <span key={b.key} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium ${b.colorClass}`}>
+                                <i className={`fa-solid ${b.icon}`} style={{ fontSize: '8px' }} /> {b.label}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
                       <h3 className="text-xl font-bold text-white drop-shadow-lg">{match.matchedWith.first_name} {match.matchedWith.last_name}</h3>
                       <p className="text-white/90 text-xs">{match.matchedWith.age} · {getGenderLabel(match.matchedWith.gender)} · {getPreferenceLabel(match.matchedWith.sexual_preference)}</p>
                     </div>
                   </div>
+                  {/* Promptlar */}
+                  {match.matchedWith.prompts && Object.keys(match.matchedWith.prompts).filter(k => match.matchedWith.prompts?.[k]?.trim()).length > 0 && (
+                    <div className="px-4 pt-3 pb-1 space-y-2 border-b border-white/5">
+                      {PROFILE_PROMPTS.filter(p => match.matchedWith.prompts?.[p.key]?.trim()).slice(0, 2).map(p => (
+                        <div key={p.key}>
+                          <p className="text-[var(--matchup-text-muted)] text-[10px] font-medium uppercase tracking-wide">{p.label}</p>
+                          <p className="text-sm text-white/80 mt-0.5">{match.matchedWith.prompts![p.key]}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="p-4 space-y-3">
                     <div className="flex gap-2 flex-wrap">
                       {match.matchedWith.phone ? (

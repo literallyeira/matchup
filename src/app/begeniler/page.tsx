@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Application } from '@/lib/supabase';
+import { PROFILE_PROMPTS } from '@/lib/prompts';
+import { getInlineBadges } from '@/lib/badges-client';
 
 interface Character {
   id: number;
@@ -216,6 +218,19 @@ export default function BegenilerPage() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-4">
+                    {/* Rozetler */}
+                    {(() => {
+                      const badges = getInlineBadges(profile);
+                      return badges.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mb-1.5">
+                          {badges.map(b => (
+                            <span key={b.key} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium ${b.colorClass}`}>
+                              <i className={`fa-solid ${b.icon}`} style={{ fontSize: '8px' }} /> {b.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
                     <h3 className="text-xl font-bold text-white">{profile.first_name} {profile.last_name}</h3>
                     <p className="text-white/80 text-sm">{profile.age} · {getGenderLabel(profile.gender)}</p>
                     {profile.description && (
@@ -223,6 +238,17 @@ export default function BegenilerPage() {
                     )}
                   </div>
                 </div>
+                {/* Promptlar */}
+                {profile.prompts && Object.keys(profile.prompts).filter(k => profile.prompts?.[k]?.trim()).length > 0 && (
+                  <div className="px-4 pt-3 pb-2 space-y-2">
+                    {PROFILE_PROMPTS.filter(p => profile.prompts?.[p.key]?.trim()).slice(0, 2).map(p => (
+                      <div key={p.key}>
+                        <p className="text-[var(--matchup-text-muted)] text-[10px] font-medium uppercase tracking-wide">{p.label}</p>
+                        <p className="text-sm text-white/80 mt-0.5">{profile.prompts![p.key]}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {/* Actions */}
                 <div className="p-4 flex gap-2">
                   <button

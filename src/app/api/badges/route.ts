@@ -10,6 +10,7 @@ export interface Badge {
 
 const ALL_BADGES: Record<string, Omit<Badge, 'key'>> = {
   verified: { label: 'Doğrulanmış', icon: 'fa-circle-check', color: 'blue' },
+  phone_verified: { label: 'Onaylı', icon: 'fa-phone', color: 'green' },
   new_member: { label: 'Yeni Üye', icon: 'fa-seedling', color: 'green' },
   first_match: { label: 'İlk Eşleşme', icon: 'fa-heart', color: 'pink' },
   popular: { label: 'Popüler', icon: 'fa-fire', color: 'orange' },
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     // Uygulama bilgisi
     const { data: app } = await supabase
       .from('applications')
-      .select('id, created_at, is_verified')
+      .select('id, created_at, is_verified, phone')
       .eq('id', applicationId)
       .single();
 
@@ -43,6 +44,11 @@ export async function GET(request: Request) {
     // Doğrulanmış
     if (app.is_verified) {
       badges.push({ key: 'verified', ...ALL_BADGES.verified });
+    }
+
+    // Telefon onaylı
+    if (app.phone?.trim()) {
+      badges.push({ key: 'phone_verified', ...ALL_BADGES.phone_verified });
     }
 
     // Yeni üye (7 günden az)
