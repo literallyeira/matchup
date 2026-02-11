@@ -35,10 +35,12 @@ export async function GET(request: Request) {
 
     const myApplication = myApp as Application;
 
-    // 4 bağımsız sorguyu paralel çalıştır (eskiden 4 sequential)
+    // 4 bağımsız sorguyu paralel çalıştır
+    // Dislike'lar 10 saat sonra sıfırlanır (sadece son 10 saatteki dislike'lar filtrelenir)
+    const tenHoursAgo = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
     const [likesRes, dislikesRes, matchesRes, boostsRes] = await Promise.all([
       supabase.from('likes').select('to_application_id').eq('from_application_id', myApplication.id),
-      supabase.from('dislikes').select('to_application_id').eq('from_application_id', myApplication.id),
+      supabase.from('dislikes').select('to_application_id').eq('from_application_id', myApplication.id).gt('created_at', tenHoursAgo),
       supabase.from('matches').select('application_1_id, application_2_id').or(`application_1_id.eq.${myApplication.id},application_2_id.eq.${myApplication.id}`),
       supabase.from('boosts').select('application_id').gt('expires_at', new Date().toISOString()),
     ]);

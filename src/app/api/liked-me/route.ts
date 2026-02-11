@@ -33,12 +33,14 @@ export async function GET(request: Request) {
 
     const tier = await getTier(myApp.id);
 
-    // Sorguları paralel çalıştır (matches için iki ayrı sorgu; .or() delete'te yok select'te kullanılabilir ama tutarlılık için iki sorgu)
+    // Sorguları paralel çalıştır
+    // Dislike'lar 10 saat sonra sıfırlanır
+    const tenHoursAgo = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
     const [likesRes, matches1, matches2, dislikesRes, myLikesRes] = await Promise.all([
       supabase.from('likes').select('from_application_id').eq('to_application_id', myApp.id),
       supabase.from('matches').select('application_1_id, application_2_id').eq('application_1_id', myApp.id),
       supabase.from('matches').select('application_1_id, application_2_id').eq('application_2_id', myApp.id),
-      supabase.from('dislikes').select('to_application_id').eq('from_application_id', myApp.id),
+      supabase.from('dislikes').select('to_application_id').eq('from_application_id', myApp.id).gt('created_at', tenHoursAgo),
       supabase.from('likes').select('to_application_id').eq('from_application_id', myApp.id),
     ]);
 
