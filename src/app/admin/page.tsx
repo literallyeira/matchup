@@ -50,13 +50,17 @@ export default function AdminPage() {
         localStorage.setItem('matchup_test_mode', newValue.toString());
     };
 
+    const getAdminName = () => {
+        return (session?.user as any)?.username || (session?.user as any)?.name || localStorage.getItem('adminUcpName') || 'admin';
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
 
         try {
-            const ucpName = (session?.user as any)?.username || 'bilinmiyor';
+            const ucpName = (session?.user as any)?.username || (session?.user as any)?.name || 'bilinmiyor';
             const response = await fetch('/api/applications', {
                 headers: {
                     'Authorization': password,
@@ -69,6 +73,7 @@ export default function AdminPage() {
                 setApplications(data);
                 setIsAuthenticated(true);
                 localStorage.setItem('adminPassword', password);
+                localStorage.setItem('adminUcpName', ucpName);
                 fetchMatches(password);
             } else {
                 setError('Yanlış şifre!');
@@ -86,7 +91,7 @@ export default function AdminPage() {
             const response = await fetch('/api/applications', {
                 headers: {
                     'Authorization': savedPassword || password,
-                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
+                    'X-Admin-Name': getAdminName()
                 }
             });
 
@@ -106,7 +111,7 @@ export default function AdminPage() {
             const response = await fetch('/api/matches', {
                 headers: {
                     'Authorization': savedPassword || password,
-                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
+                    'X-Admin-Name': getAdminName()
                 }
             });
 
@@ -128,7 +133,7 @@ export default function AdminPage() {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': password || localStorage.getItem('adminPassword') || '',
-                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
+                    'X-Admin-Name': getAdminName()
                 },
                 body: JSON.stringify({ id })
             });
@@ -149,7 +154,7 @@ export default function AdminPage() {
                 method: 'DELETE',
                 headers: {
                     'Authorization': password || localStorage.getItem('adminPassword') || '',
-                    'X-Admin-Name': (session?.user as any)?.username || 'admin'
+                    'X-Admin-Name': getAdminName()
                 }
             });
 
@@ -284,6 +289,7 @@ export default function AdminPage() {
         setApplications([]);
         setMatches([]);
         localStorage.removeItem('adminPassword');
+        localStorage.removeItem('adminUcpName');
     };
 
     useEffect(() => {
