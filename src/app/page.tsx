@@ -85,10 +85,7 @@ function HomeContent() {
   const [limits, setLimits] = useState<{ tier: string; dailyLimit: number; remaining: number; resetAt: string; boostExpiresAt: string | null; subscriptionExpiresAt?: string | null } | null>(null);
   const [showShop, setShowShop] = useState(false);
   const [checkoutPending, setCheckoutPending] = useState<string | null>(null);
-  const [showLikedBy, setShowLikedBy] = useState(false);
-  const [likedBy, setLikedBy] = useState<Application[]>([]);
   const [likedByCount, setLikedByCount] = useState<number | null>(null);
-  const [loadingLikedBy, setLoadingLikedBy] = useState(false);
   const [isDeletingProfile, setIsDeletingProfile] = useState(false);
 
   const [testMode, setTestMode] = useState(false);
@@ -635,22 +632,6 @@ function HomeContent() {
 
   const currentCard = possibleMatches[0];
 
-  const openLikedBy = async () => {
-    setShowLikedBy(true);
-    setLoadingLikedBy(true);
-    try {
-      const res = await fetch(`/api/liked-me?characterId=${selectedCharacter?.id}`);
-      const data = await res.json();
-      setLikedBy(data.likedBy || []);
-      setLikedByCount(data.count ?? 0);
-    } catch {
-      setLikedBy([]);
-      setLikedByCount(0);
-    } finally {
-      setLoadingLikedBy(false);
-    }
-  };
-
   return (
     <main className="py-6 px-4 pb-24">
       <div className="max-w-lg mx-auto">
@@ -707,9 +688,9 @@ function HomeContent() {
 
           {/* Row 3: Action Buttons */}
           <div className="flex items-center gap-2">
-            <button onClick={openLikedBy} className="btn-secondary text-sm flex-1 whitespace-nowrap">
+            <Link href="/begeniler" className="btn-secondary text-sm flex-1 whitespace-nowrap text-center">
               <i className="fa-solid fa-eye mr-1.5" /> Beğenenler{likedByCount != null && likedByCount > 0 ? ` (${likedByCount})` : ''}
-            </button>
+            </Link>
             <button onClick={() => setShowShop(true)} className="btn-secondary text-sm flex-1 whitespace-nowrap">
               <i className="fa-solid fa-store mr-1.5" /> Mağaza
             </button>
@@ -865,111 +846,6 @@ function HomeContent() {
             <h2 className="text-2xl font-bold text-[var(--matchup-primary)] mb-1">Eşleşme!</h2>
             <p className="text-[var(--matchup-text-muted)] mb-4">{showMatchModal.first_name} {showMatchModal.last_name} seni de beğendi.</p>
             <button onClick={() => setShowMatchModal(null)} className="btn-primary">Harika!</button>
-          </div>
-        </div>
-      )}
-
-      {showLikedBy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in overflow-y-auto" onClick={() => setShowLikedBy(false)}>
-          <div className="max-w-lg w-full my-8 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-2xl font-bold">
-                  <i className="fa-solid fa-eye mr-2 text-violet-400" />
-                  Seni beğenenler
-                </h2>
-                <p className="text-[var(--matchup-text-muted)] text-sm mt-1">Bu profiller seni beğendi. Beğenerek eşleş!</p>
-              </div>
-              <button onClick={() => setShowLikedBy(false)} className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
-                <i className="fa-solid fa-xmark text-lg" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="overflow-y-auto max-h-[70vh] space-y-4 pr-1">
-              {loadingLikedBy ? (
-                <div className="card text-center py-12">
-                  <div className="animate-spin w-10 h-10 border-4 border-violet-400 border-t-transparent rounded-full mx-auto" />
-                  <p className="mt-4 text-[var(--matchup-text-muted)]">Yükleniyor...</p>
-                </div>
-              ) : likedBy.length === 0 && (likedByCount ?? 0) > 0 ? (
-                <div className="card text-center py-12">
-                  <i className="fa-solid fa-heart text-5xl text-[var(--matchup-primary)] mb-4" />
-                  <h3 className="text-lg font-bold mb-1">{likedByCount} kişi seni beğendi</h3>
-                  <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Kim olduklarını görmek için MatchUp Pro&apos;ya geç.</p>
-                  <button onClick={() => { setShowLikedBy(false); setShowShop(true); }} className="btn-primary">
-                    <i className="fa-solid fa-crown mr-2" /> Pro&apos;ya Geç
-                  </button>
-                </div>
-              ) : likedBy.length === 0 ? (
-                <div className="card text-center py-12">
-                  <i className="fa-solid fa-heart-crack text-5xl text-[var(--matchup-text-muted)] mb-4" />
-                  <h3 className="text-lg font-bold mb-1">Henüz seni beğenen yok</h3>
-                  <p className="text-[var(--matchup-text-muted)] text-sm">Profilini güncelleyip daha fazla kişiye ulaş!</p>
-                </div>
-              ) : (
-                likedBy.map((profile) => (
-                  <div key={profile.id} className="card p-0 overflow-hidden">
-                    {/* Photo */}
-                    <div className="relative w-full aspect-[3/2] overflow-hidden">
-                      {profile.photo_url ? (
-                        <img src={profile.photo_url} alt="" className="w-full h-full object-cover object-top" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center">
-                          <i className="fa-solid fa-user text-4xl text-white/40" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 className="text-xl font-bold text-white">{profile.first_name} {profile.last_name}</h3>
-                        <p className="text-white/80 text-sm">{profile.age} · {getGenderLabel(profile.gender)} · {getPreferenceLabel(profile.sexual_preference)}</p>
-                      </div>
-                    </div>
-                    {/* Info + Actions */}
-                    <div className="p-4">
-                      {profile.description && (
-                        <p className="text-sm text-[var(--matchup-text-muted)] mb-4 line-clamp-2">{profile.description}</p>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={async () => {
-                            if (!selectedCharacter) return;
-                            try {
-                              const res = await fetch('/api/like', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ toApplicationId: profile.id, characterId: selectedCharacter.id }),
-                              });
-                              const data = await res.json();
-                              if (res.ok) {
-                                if (data.isMatch) {
-                                  setShowMatchModal(profile);
-                                  fetchMyData();
-                                }
-                                setLikedBy((prev) => prev.filter((p) => p.id !== profile.id));
-                                if (data.remaining !== undefined && limits) setLimits((l) => l ? { ...l, remaining: data.remaining, resetAt: data.resetAt || l.resetAt } : null);
-                              }
-                            } catch {
-                              // ignore
-                            }
-                          }}
-                          className="btn-primary py-2.5 flex-1 flex items-center justify-center gap-2"
-                        >
-                          <i className="fa-solid fa-heart" /> Beğen & Eşleş
-                        </button>
-                        <button
-                          onClick={() => setLikedBy((prev) => prev.filter((p) => p.id !== profile.id))}
-                          className="w-11 h-11 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all flex-shrink-0"
-                        >
-                          <i className="fa-solid fa-xmark text-lg" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
         </div>
       )}
