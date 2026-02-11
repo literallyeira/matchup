@@ -14,7 +14,7 @@ interface Ad {
 function AdSlot({ ad, side }: { ad: Ad | null; side: 'left' | 'right' }) {
   // Banner'ı, ana içerik (yaklaşık 700px) ile ekran kenarı arasındaki boşluğun ortasına konumla
   const positionStyle = {
-    [side]: 'calc((100vw - 700px) / 4 - 100px)',
+    [side]: 'calc((100vw - 700px) / 4 - 130px)',
   };
 
   if (ad) {
@@ -29,7 +29,7 @@ function AdSlot({ ad, side }: { ad: Ad | null; side: 'left' | 'right' }) {
           rel="noopener noreferrer"
           className="block group"
         >
-          <div className="relative w-[200px]">
+          <div className="relative w-[260px]">
             <div className="rounded-2xl overflow-hidden border border-white/10 shadow-lg shadow-black/50 transition-all duration-300 group-hover:border-pink-500/30 group-hover:shadow-pink-500/10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -55,7 +55,7 @@ function AdSlot({ ad, side }: { ad: Ad | null; side: 'left' | 'right' }) {
       style={positionStyle}
     >
       <Link href="/reklam" className="block group">
-        <div className="relative w-[200px]">
+        <div className="relative w-[260px]">
           <div className="rounded-2xl border border-dashed border-white/10 h-[500px] flex flex-col items-center justify-center gap-3 transition-all duration-300 group-hover:border-pink-500/30 group-hover:bg-pink-500/5 cursor-pointer">
             <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-pink-500/10 transition-all">
               <i className="fa-solid fa-rectangle-ad text-xl text-gray-600 group-hover:text-pink-400 transition-colors"></i>
