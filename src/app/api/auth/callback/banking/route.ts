@@ -81,7 +81,7 @@ export async function GET(request: Request) {
     // Token doğrulama başarısız olsa bile, siparişi işle
     if (validationData) {
       // Token doğrulandı, auth_key ve message kontrol et
-      if (validationData.auth_key !== AUTH_KEY || validationData.message !== 'successful_payment') {
+      if (validationData.auth_key !== AUTH_KEY || validationData.message !== 'payment_successful') {
         console.error('Banking callback: auth_key/message eşleşmedi', validationData);
         return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
       }

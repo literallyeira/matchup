@@ -81,7 +81,7 @@ export async function GET(request: Request) {
           payment?: number;
           sandbox?: boolean;
         };
-        if (retryData.auth_key === AUTH_KEY && retryData.message === 'successful_payment') {
+        if (retryData.auth_key === AUTH_KEY && retryData.message === 'payment_successful') {
           return processPayment(order, retryData, order.gateway_token as string);
         }
       }
@@ -101,7 +101,7 @@ export async function GET(request: Request) {
       sandbox?: boolean;
     };
 
-    if (data.auth_key !== AUTH_KEY || data.message !== 'successful_payment') {
+    if (data.auth_key !== AUTH_KEY || data.message !== 'payment_successful') {
       console.error('Payment callback: auth_key veya message eşleşmedi', data.message);
       return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
     }
