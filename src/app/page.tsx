@@ -69,6 +69,36 @@ function getTierColor(tier: string): string {
   return '';
 }
 
+function MatchPhotoGallery({ photos, children }: { photos: string[]; children: React.ReactNode }) {
+  const [idx, setIdx] = useState(0);
+  const safeIdx = Math.min(idx, photos.length - 1);
+  return (
+    <div className="relative w-full aspect-[4/5] overflow-hidden">
+      {photos.length > 0 ? (
+        <img src={photos[safeIdx]} alt="" className="w-full h-full object-cover object-top transition-all duration-300" />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-[var(--matchup-primary)] to-purple-600 flex items-center justify-center">
+          <i className="fa-solid fa-user text-4xl text-white/50" />
+        </div>
+      )}
+      {photos.length > 1 && (
+        <>
+          <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+            {photos.map((_, i) => (
+              <div key={i} className={`h-1 rounded-full transition-all ${i === safeIdx ? 'bg-white w-6' : 'bg-white/40 w-4'}`} />
+            ))}
+          </div>
+          <div className="absolute inset-0 flex z-[5]">
+            <div className="w-1/2 h-full cursor-pointer" onClick={() => setIdx(Math.max(0, safeIdx - 1))} />
+            <div className="w-1/2 h-full cursor-pointer" onClick={() => setIdx(Math.min(photos.length - 1, safeIdx + 1))} />
+          </div>
+        </>
+      )}
+      {children}
+    </div>
+  );
+}
+
 function HomeContent() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -939,16 +969,11 @@ function HomeContent() {
                 <p className="text-[var(--matchup-text-muted)] text-sm">Beğendiğin profiller seni de beğenirse burada görünecek.</p>
               </div>
             ) : (
-              matches.map((match) => (
+              matches.map((match) => {
+                const matchPhotos = [match.matchedWith.photo_url, ...(match.matchedWith.extra_photos || []).filter(Boolean)];
+                return (
                 <div key={match.id} className="rounded-3xl overflow-hidden shadow-2xl bg-[var(--matchup-bg-card)] animate-fade-in">
-                  <div className="relative w-full aspect-[4/5] overflow-hidden">
-                    {match.matchedWith.photo_url ? (
-                      <img src={match.matchedWith.photo_url} alt="" className="w-full h-full object-cover object-top" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[var(--matchup-primary)] to-purple-600 flex items-center justify-center">
-                        <i className="fa-solid fa-user text-4xl text-white/50" />
-                      </div>
-                    )}
+                  <MatchPhotoGallery photos={matchPhotos}>
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 pt-12 pb-3 px-4">
                       {/* Rozetler */}
@@ -967,11 +992,11 @@ function HomeContent() {
                       <h3 className="text-xl font-bold text-white drop-shadow-lg">{match.matchedWith.first_name} {match.matchedWith.last_name}</h3>
                       <p className="text-white/90 text-xs">{match.matchedWith.age} · {getGenderLabel(match.matchedWith.gender)} · {getPreferenceLabel(match.matchedWith.sexual_preference)}</p>
                     </div>
-                  </div>
+                  </MatchPhotoGallery>
                   {/* Promptlar */}
                   {match.matchedWith.prompts && Object.keys(match.matchedWith.prompts).filter(k => match.matchedWith.prompts?.[k]?.trim()).length > 0 && (
                     <div className="px-4 pt-3 pb-1 space-y-2 border-b border-white/5">
-                      {PROFILE_PROMPTS.filter(p => match.matchedWith.prompts?.[p.key]?.trim()).slice(0, 2).map(p => (
+                      {PROFILE_PROMPTS.filter(p => match.matchedWith.prompts?.[p.key]?.trim()).map(p => (
                         <div key={p.key}>
                           <p className="text-[var(--matchup-text-muted)] text-[10px] font-medium uppercase tracking-wide">{p.label}</p>
                           <p className="text-sm text-white/80 mt-0.5">{match.matchedWith.prompts![p.key]}</p>
@@ -1004,7 +1029,8 @@ function HomeContent() {
                     </button>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

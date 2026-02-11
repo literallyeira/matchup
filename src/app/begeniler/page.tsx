@@ -241,7 +241,7 @@ export default function BegenilerPage() {
                 {/* Promptlar */}
                 {profile.prompts && Object.keys(profile.prompts).filter(k => profile.prompts?.[k]?.trim()).length > 0 && (
                   <div className="px-4 pt-3 pb-2 space-y-2">
-                    {PROFILE_PROMPTS.filter(p => profile.prompts?.[p.key]?.trim()).slice(0, 2).map(p => (
+                    {PROFILE_PROMPTS.filter(p => profile.prompts?.[p.key]?.trim()).map(p => (
                       <div key={p.key}>
                         <p className="text-[var(--matchup-text-muted)] text-[10px] font-medium uppercase tracking-wide">{p.label}</p>
                         <p className="text-sm text-white/80 mt-0.5">{profile.prompts![p.key]}</p>

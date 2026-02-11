@@ -46,7 +46,7 @@ export async function GET() {
 
     const { data: profile } = await supabase
       .from('applications')
-      .select('id, first_name, last_name, age, gender, photo_url, description, is_verified, extra_photos, prompts')
+      .select('id, first_name, last_name, age, gender, sexual_preference, phone, facebrowser, photo_url, description, is_verified, extra_photos, prompts, created_at, weight, gtaw_user_id, character_id, character_name')
       .eq('id', spotlightId)
       .single();
 
