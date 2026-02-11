@@ -17,6 +17,8 @@ function getProductLabel(product: string): string {
   if (product === 'plus') return 'MatchUp+';
   if (product === 'pro') return 'MatchUp Pro';
   if (product === 'boost') return 'Boost';
+  if (product === 'ad_left') return 'Reklam (Sol)';
+  if (product === 'ad_right') return 'Reklam (Sağ)';
   return product;
 }
 

@@ -20,7 +20,7 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments'>('applications');
+    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads'>('applications');
     const [subModal, setSubModal] = useState<{ appId: string; name: string; currentTier: string } | null>(null);
     const [subTier, setSubTier] = useState('free');
     const [subDays, setSubDays] = useState(7);
@@ -30,6 +30,8 @@ export default function AdminPage() {
     const [paymentsList, setPaymentsList] = useState<Array<{ id: string; application_id: string; product: string; amount: number; created_at?: string; first_name?: string; last_name?: string; character_name?: string }>>([]);
     const [loadingSubs, setLoadingSubs] = useState(false);
     const [loadingPayments, setLoadingPayments] = useState(false);
+    const [adsList, setAdsList] = useState<Array<{ id: string; gtaw_user_id: number; position: string; image_url: string; link_url: string; expires_at: string; is_active: boolean; created_at: string }>>([]);
+    const [loadingAds, setLoadingAds] = useState(false);
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -234,6 +236,37 @@ export default function AdminPage() {
         finally { setLoadingPayments(false); }
     };
 
+    const fetchAdsList = async () => {
+        setLoadingAds(true);
+        try {
+            const res = await fetch('/api/admin/ads', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAdsList(Array.isArray(data) ? data : []);
+            } else setAdsList([]);
+        } catch { setAdsList([]); }
+        finally { setLoadingAds(false); }
+    };
+
+    const handleDeactivateAd = async (adId: string) => {
+        if (!confirm('Bu reklamı deaktif etmek istediğinize emin misiniz?')) return;
+        try {
+            const res = await fetch('/api/admin/ads', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}`,
+                },
+                body: JSON.stringify({ adId }),
+            });
+            if (res.ok) {
+                setAdsList(adsList.map(a => a.id === adId ? { ...a, is_active: false } : a));
+            }
+        } catch { /* ignore */ }
+    };
+
     const handleSubChange = async () => {
         if (!subModal) return;
         setSubLoading(true);
@@ -268,6 +301,11 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (activeTab === 'payments' && isAuthenticated) fetchPaymentsList();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
+    useEffect(() => {
+        if (activeTab === 'ads' && isAuthenticated) fetchAdsList();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
 
@@ -488,6 +526,15 @@ export default function AdminPage() {
                             }`}
                     >
                         <i className="fa-solid fa-receipt mr-2"></i>Ödemeler
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('ads')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'ads'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-rectangle-ad mr-2"></i>Reklamlar
                     </button>
                 </div>
 
@@ -854,12 +901,69 @@ export default function AdminPage() {
                                                     <td className="py-3 pr-4 text-[var(--matchup-text-muted)]">{p.created_at ? formatDate(p.created_at) : '-'}</td>
                                                     <td className="py-3 pr-4">{p.first_name} {p.last_name}</td>
                                                     <td className="py-3 pr-4 text-[var(--matchup-primary)]">{p.character_name || '-'}</td>
-                                                    <td className="py-3 pr-4">{p.product === 'pro' ? 'MatchUp Pro' : p.product === 'plus' ? 'MatchUp+' : p.product === 'boost' ? 'Boost' : p.product}</td>
+                                                    <td className="py-3 pr-4">{p.product === 'pro' ? 'MatchUp Pro' : p.product === 'plus' ? 'MatchUp+' : p.product === 'boost' ? 'Boost' : p.product === 'ad_left' ? 'Reklam (Sol)' : p.product === 'ad_right' ? 'Reklam (Sağ)' : p.product}</td>
                                                     <td className="py-3 pr-4 font-semibold text-[var(--matchup-primary)]">₺{p.amount}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'ads' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-rectangle-ad mr-2 text-pink-400"></i>Reklamlar</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Tüm reklam kayıtları.</p>
+                            {loadingAds ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : adsList.length === 0 ? (
+                                <p className="text-[var(--matchup-text-muted)] py-8 text-center">Henüz reklam yok.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {adsList.map((ad) => {
+                                        const isExpired = new Date(ad.expires_at) < new Date();
+                                        const isActive = ad.is_active && !isExpired;
+                                        return (
+                                            <div key={ad.id} className={`p-4 rounded-xl border ${isActive ? 'border-green-500/30 bg-green-500/5' : 'border-white/10 bg-white/5 opacity-60'}`}>
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-black/40 border border-white/10">
+                                                        <img src={ad.image_url} alt="Reklam" className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                                {isActive ? 'Aktif' : isExpired ? 'Süresi Dolmuş' : 'Deaktif'}
+                                                            </span>
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${ad.position === 'left' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                                                                {ad.position === 'left' ? 'Sol' : 'Sağ'}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-400 truncate mb-1">
+                                                            <i className="fa-solid fa-link mr-1"></i>
+                                                            <a href={ad.link_url} target="_blank" rel="noopener noreferrer" className="hover:text-pink-400">{ad.link_url}</a>
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            GTAW ID: {ad.gtaw_user_id} &middot; Oluşturulma: {formatDate(ad.created_at)} &middot; Bitiş: {formatDate(ad.expires_at)}
+                                                        </p>
+                                                    </div>
+                                                    {isActive && (
+                                                        <button
+                                                            onClick={() => handleDeactivateAd(ad.id)}
+                                                            className="btn-danger text-xs flex-shrink-0"
+                                                        >
+                                                            <i className="fa-solid fa-ban mr-1"></i>Deaktif Et
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { Providers } from "./providers";
+import AdBanners from "@/components/AdBanners";
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
@@ -38,6 +39,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} antialiased min-h-screen flex flex-col`}>
         <Providers>
+          <AdBanners />
           <div className="flex-1 w-full">
             {children}
           </div>
@@ -60,6 +62,10 @@ export default function RootLayout({
                     <Link href="/siparislerim" className="flex items-center gap-2 text-gray-500 hover:text-[var(--matchup-primary)] transition-colors">
                       <i className="fa-solid fa-receipt text-lg"></i>
                       <span>Siparişlerim</span>
+                    </Link>
+                    <Link href="/reklam" className="flex items-center gap-2 text-gray-500 hover:text-pink-500 transition-colors">
+                      <i className="fa-solid fa-rectangle-ad text-lg"></i>
+                      <span>Reklam Ver</span>
                     </Link>
                     <a href="https://discord.gg/gtaworldtr" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-500 hover:text-[#5865F2] transition-colors">
                       <i className="fa-brands fa-discord text-lg"></i>

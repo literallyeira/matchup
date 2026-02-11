@@ -14,6 +14,8 @@ const PRODUCTS: Record<string, { price: number }> = {
   plus: { price: 5000 },
   pro: { price: 16500 },
   boost: { price: 5000 },
+  ad_left: { price: 25000 },
+  ad_right: { price: 25000 },
 };
 
 // POST - Ödeme başlat: pending order + gateway redirect URL
@@ -29,23 +31,35 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { product, characterId } = await request.json();
-    if (!product || !['plus', 'pro', 'boost'].includes(product)) {
+    const { product, characterId, adImageUrl, adLinkUrl } = await request.json();
+    const validProducts = ['plus', 'pro', 'boost', 'ad_left', 'ad_right'];
+    if (!product || !validProducts.includes(product)) {
       return NextResponse.json({ error: 'Geçersiz ürün' }, { status: 400 });
     }
-    if (!characterId) {
-      return NextResponse.json({ error: 'characterId gerekli' }, { status: 400 });
+
+    // Reklam ürünleri için image ve link zorunlu
+    if (product.startsWith('ad_') && (!adImageUrl || !adLinkUrl)) {
+      return NextResponse.json({ error: 'Reklam için resim ve link gerekli' }, { status: 400 });
     }
 
-    const { data: myApp, error: appError } = await supabase
-      .from('applications')
-      .select('id')
-      .eq('gtaw_user_id', session.user.gtawId)
-      .eq('character_id', parseInt(characterId))
-      .single();
+    let appId: string | null = null;
 
-    if (appError || !myApp) {
-      return NextResponse.json({ error: 'Profil bulunamadı' }, { status: 404 });
+    // Reklam ürünleri için characterId zorunlu değil
+    if (!product.startsWith('ad_')) {
+      if (!characterId) {
+        return NextResponse.json({ error: 'characterId gerekli' }, { status: 400 });
+      }
+      const { data: myApp, error: appError } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('gtaw_user_id', session.user.gtawId)
+        .eq('character_id', parseInt(characterId))
+        .single();
+
+      if (appError || !myApp) {
+        return NextResponse.json({ error: 'Profil bulunamadı' }, { status: 404 });
+      }
+      appId = myApp.id;
     }
 
     const prod = PRODUCTS[product];
@@ -53,10 +67,24 @@ export async function POST(request: Request) {
 
     const { error: insertError } = await supabase.from('pending_orders').insert({
       order_id: orderId,
-      application_id: myApp.id,
+      application_id: appId,
       product,
       amount: prod.price,
     });
+
+    // Reklam ürünü ise, ads tablosuna inaktif olarak ekle (ödeme sonrası aktifleşecek)
+    if (product.startsWith('ad_') && !insertError) {
+      const position = product === 'ad_left' ? 'left' : 'right';
+      await supabase.from('ads').insert({
+        gtaw_user_id: session.user.gtawId,
+        position,
+        image_url: adImageUrl,
+        link_url: adLinkUrl,
+        expires_at: new Date().toISOString(), // ödeme sonrası güncellenecek
+        is_active: false,
+        order_id: orderId,
+      });
+    }
 
     if (insertError) {
       return NextResponse.json({ error: 'Sipariş oluşturulamadı' }, { status: 500 });

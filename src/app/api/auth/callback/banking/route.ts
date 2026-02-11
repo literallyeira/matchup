@@ -187,6 +187,13 @@ async function processPayment(
       application_id: appId,
       expires_at: expiresAt.toISOString(),
     });
+  } else if (product === 'ad_left' || product === 'ad_right') {
+    // Reklamı aktifleştir - order_id ile eşleşen kaydı bul
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase
+      .from('ads')
+      .update({ is_active: true, expires_at: weekFromNow })
+      .eq('order_id', order.order_id as string);
   }
 
   await supabase.from('payments').insert({
