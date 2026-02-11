@@ -38,8 +38,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Geçersiz' }, { status: 400 });
     }
 
+    // created_at her dislike'ta güncellenir; böylece 10 saatlik süre yeniden başlar
     await supabase.from('dislikes').upsert(
-      { from_application_id: fromId, to_application_id: toApplicationId },
+      { from_application_id: fromId, to_application_id: toApplicationId, created_at: new Date().toISOString() },
       { onConflict: 'from_application_id,to_application_id' }
     );
 
