@@ -751,7 +751,7 @@ function HomeContent() {
               </div>
             ) : (
               <>
-                <div className="card p-0 overflow-hidden w-full animate-fade-in">
+                <div className="w-full animate-fade-in rounded-3xl overflow-hidden shadow-2xl">
                   <div className="relative w-full aspect-[4/5] overflow-hidden">
                     {currentCard.photo_url ? (
                       <img src={currentCard.photo_url} alt="" className="w-full h-full object-cover object-top" />
@@ -760,18 +760,18 @@ function HomeContent() {
                         <i className="fa-solid fa-user text-6xl text-white/50" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 pt-16 pb-4 px-4">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 pt-20 pb-5 px-5">
                       <h3 className="text-2xl font-bold text-white drop-shadow-lg">
                         {currentCard.first_name} {currentCard.last_name}
                       </h3>
-                      <p className="text-white/90 text-sm mt-0.5">
-                        {currentCard.age} · {getGenderLabel(currentCard.gender)} · {getPreferenceLabel(currentCard.sexual_preference)}
+                      <p className="text-white/80 text-sm mt-0.5">
+                        {currentCard.age} · {getGenderLabel(currentCard.gender)}
                       </p>
+                      {currentCard.description && (
+                        <p className="text-white/60 text-sm mt-2 line-clamp-3">{currentCard.description}</p>
+                      )}
                     </div>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-sm text-[var(--matchup-text-muted)] line-clamp-3">{currentCard.description}</p>
                   </div>
                 </div>
                 {limits?.remaining === 0 && (
@@ -812,7 +812,7 @@ function HomeContent() {
               </div>
             ) : (
               matches.map((match) => (
-                <div key={match.id} className="card p-0 overflow-hidden animate-fade-in">
+                <div key={match.id} className="rounded-3xl overflow-hidden shadow-2xl bg-[var(--matchup-bg-card)] animate-fade-in">
                   <div className="relative w-full aspect-[4/5] overflow-hidden">
                     {match.matchedWith.photo_url ? (
                       <img src={match.matchedWith.photo_url} alt="" className="w-full h-full object-cover object-top" />
@@ -824,7 +824,7 @@ function HomeContent() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 pt-12 pb-3 px-4">
                       <h3 className="text-xl font-bold text-white drop-shadow-lg">{match.matchedWith.first_name} {match.matchedWith.last_name}</h3>
-                      <p className="text-white/90 text-xs">{match.matchedWith.age} · {getGenderLabel(match.matchedWith.gender)}</p>
+                      <p className="text-white/90 text-xs">{match.matchedWith.age} · {getGenderLabel(match.matchedWith.gender)} · {getPreferenceLabel(match.matchedWith.sexual_preference)}</p>
                     </div>
                   </div>
                   <div className="p-4 space-y-3">
