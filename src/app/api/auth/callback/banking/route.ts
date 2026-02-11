@@ -9,26 +9,43 @@ const BASE_URL = process.env.NEXTAUTH_URL || 'https://matchup.icu';
 // GET - Banka ödeme sonrası yönlendirme (https://matchup.icu/api/auth/callback/banking)
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const token = searchParams.get('token');
-
-  if (!token) {
-    return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
-  }
+  const urlToken = searchParams.get('token');
 
   const cookieStore = await cookies();
   const orderId = cookieStore.get('matchup_pending_order')?.value;
 
   if (!orderId) {
+    console.error('Banking callback: matchup_pending_order cookie bulunamadı');
     return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
   }
 
   try {
+    // Önce siparişi bul
+    const { data: order, error: orderError } = await supabase
+      .from('pending_orders')
+      .select('application_id, product, amount, gateway_token')
+      .eq('order_id', orderId)
+      .single();
+
+    if (orderError || !order) {
+      console.error('Banking callback: sipariş bulunamadı', orderId, orderError);
+      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+    }
+
+    // Token: URL'den gelen veya veritabanında kayıtlı olan
+    const token = urlToken || (order.gateway_token as string | null);
+    if (!token) {
+      console.error('Banking callback: token bulunamadı (URL veya DB)');
+      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+    }
+
     const validateRes = await fetch(
       `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(token)}/strict`,
       { method: 'GET' }
     );
 
     if (!validateRes.ok) {
+      console.error('Banking callback: token doğrulama başarısız', validateRes.status);
       return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
     }
 
@@ -40,16 +57,7 @@ export async function GET(request: Request) {
     };
 
     if (data.auth_key !== AUTH_KEY || data.message !== 'successful_payment') {
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
-    }
-
-    const { data: order, error: orderError } = await supabase
-      .from('pending_orders')
-      .select('application_id, product, amount')
-      .eq('order_id', orderId)
-      .single();
-
-    if (orderError || !order) {
+      console.error('Banking callback: auth_key veya message eşleşmedi', data.message);
       return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
     }
 
