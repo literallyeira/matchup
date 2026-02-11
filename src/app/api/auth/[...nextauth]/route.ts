@@ -12,19 +12,29 @@ export async function GET(
   const params = await context.params;
   const segments = params?.nextauth || [];
 
-  // Edge case: banka tokeni path'e yapışık geliyor
-  // örn: /api/auth/callback/bankingXXXXXXX -> segments = ['callback', 'bankingXXXXXX']
-  // Bu durumda gerçek banking route'una yönlendir: /api/auth/callback/banking?token=XXX
+  // Banking callback: /api/auth/callback/banking veya /api/auth/callback/bankingXXX
+  // Statik banking/route.ts öncelik almalı ama catch-all'a düşerse burada yakala
   if (
     segments.length === 2 &&
     segments[0] === 'callback' &&
-    segments[1].startsWith('banking') &&
-    segments[1].length > 'banking'.length
+    segments[1].startsWith('banking')
   ) {
-    const token = segments[1].slice('banking'.length);
     const url = new URL(req.url);
     const redirectUrl = new URL('/api/auth/callback/banking', url.origin);
-    redirectUrl.searchParams.set('token', token);
+
+    // Orijinal query parametrelerini aktar (banka ?token=XXX gönderiyorsa)
+    url.searchParams.forEach((value, key) => {
+      redirectUrl.searchParams.set(key, value);
+    });
+
+    // Token path'e yapışık geldiyse onu da ekle
+    if (segments[1].length > 'banking'.length) {
+      const pathToken = segments[1].slice('banking'.length);
+      if (!redirectUrl.searchParams.has('token')) {
+        redirectUrl.searchParams.set('token', pathToken);
+      }
+    }
+
     return NextResponse.redirect(redirectUrl.toString(), 302);
   }
 
