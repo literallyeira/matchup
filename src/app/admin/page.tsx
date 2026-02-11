@@ -56,9 +56,11 @@ export default function AdminPage() {
         setError('');
 
         try {
+            const ucpName = (session?.user as any)?.username || 'bilinmiyor';
             const response = await fetch('/api/applications', {
                 headers: {
-                    'Authorization': password
+                    'Authorization': password,
+                    'X-Admin-Name': ucpName
                 }
             });
 
@@ -406,7 +408,15 @@ export default function AdminPage() {
                                 priority
                             />
                         </Link>
-                        <span className="text-[var(--matchup-text-muted)]">Admin Paneli</span>
+                        <div>
+                            <span className="text-[var(--matchup-text-muted)]">Admin Paneli</span>
+                            {session?.user && (
+                                <p className="text-xs text-[var(--matchup-primary)]">
+                                    <i className="fa-solid fa-user-shield mr-1" />
+                                    {(session.user as any).username || session.user.name}
+                                </p>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-4">
                         {/* Test Mode Toggle */}

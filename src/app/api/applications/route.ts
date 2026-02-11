@@ -4,13 +4,17 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
     try {
         const password = request.headers.get('Authorization');
+        const adminName = request.headers.get('X-Admin-Name') || 'bilinmiyor';
 
         if (password !== process.env.ADMIN_PASSWORD) {
+            console.warn(`[ADMIN] Başarısız giriş denemesi: ${adminName}`);
             return NextResponse.json(
                 { error: 'Yetkisiz erişim!' },
                 { status: 401 }
             );
         }
+
+        console.log(`[ADMIN] ${adminName} admin paneline erişti (profiller)`);
 
         const { data, error } = await supabase
             .from('applications')

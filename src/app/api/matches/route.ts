@@ -4,10 +4,13 @@ import { supabase } from '@/lib/supabase';
 // GET - Get all matches (admin only)
 export async function GET(request: Request) {
     const authHeader = request.headers.get('Authorization');
+    const adminName = request.headers.get('X-Admin-Name') || 'bilinmiyor';
 
     if (authHeader !== process.env.ADMIN_PASSWORD) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log(`[ADMIN] ${adminName} eşleşmeleri görüntüledi`);
 
     try {
         const { data, error } = await supabase

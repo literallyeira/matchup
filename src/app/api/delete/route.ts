@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        console.log(`[ADMIN] ${adminName} profil silme işlemi başlattı`);
+
         const { id } = await request.json();
 
         if (!id) {
