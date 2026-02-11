@@ -40,11 +40,41 @@ export default function AdminPage() {
     // Test mode state
     const [testMode, setTestMode] = useState(false);
 
+    // Ads toggle state
+    const [adsEnabled, setAdsEnabled] = useState(false);
+
     // Load test mode from localStorage
     useEffect(() => {
         const savedTestMode = localStorage.getItem('matchup_test_mode');
         setTestMode(savedTestMode === 'true');
     }, []);
+
+    const fetchAdsEnabled = async () => {
+        try {
+            const res = await fetch('/api/admin/ads-toggle', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAdsEnabled(data.enabled);
+            }
+        } catch { /* ignore */ }
+    };
+
+    const toggleAdsEnabled = async () => {
+        const newVal = !adsEnabled;
+        try {
+            const res = await fetch('/api/admin/ads-toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}`,
+                },
+                body: JSON.stringify({ enabled: newVal }),
+            });
+            if (res.ok) setAdsEnabled(newVal);
+        } catch { /* ignore */ }
+    };
 
     const toggleTestMode = () => {
         const newValue = !testMode;
@@ -77,6 +107,7 @@ export default function AdminPage() {
                 localStorage.setItem('adminPassword', password);
                 localStorage.setItem('adminUcpName', ucpName);
                 fetchMatches(password);
+                fetchAdsEnabled();
             } else {
                 setError('Yanlış şifre!');
             }
@@ -337,6 +368,7 @@ export default function AdminPage() {
             setIsAuthenticated(true);
             fetchApplications(savedPassword);
             fetchMatches(savedPassword);
+            fetchAdsEnabled();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -463,6 +495,17 @@ export default function AdminPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        {/* Ads Toggle */}
+                        <button
+                            onClick={toggleAdsEnabled}
+                            className={`px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2 ${adsEnabled
+                                ? 'bg-pink-500 text-white'
+                                : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                                }`}
+                        >
+                            <i className="fa-solid fa-rectangle-ad"></i>
+                            {adsEnabled ? 'Reklamlar: Açık' : 'Reklamlar: Kapalı'}
+                        </button>
                         {/* Test Mode Toggle */}
                         <button
                             onClick={toggleTestMode}

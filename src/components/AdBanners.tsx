@@ -75,19 +75,30 @@ export default function AdBanners() {
   const [leftAd, setLeftAd] = useState<Ad | null>(null);
   const [rightAd, setRightAd] = useState<Ad | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    fetch('/api/ads')
+    // Önce reklam sistemi açık mı kontrol et
+    fetch('/api/ads/status')
       .then((res) => res.json())
       .then((data) => {
-        setLeftAd(data.left || null);
-        setRightAd(data.right || null);
+        if (!data.enabled) {
+          setLoaded(true);
+          return;
+        }
+        setEnabled(true);
+        return fetch('/api/ads')
+          .then((res) => res.json())
+          .then((data) => {
+            setLeftAd(data.left || null);
+            setRightAd(data.right || null);
+          });
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
 
-  if (!loaded) return null;
+  if (!loaded || !enabled) return null;
 
   return (
     <>

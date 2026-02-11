@@ -63,10 +63,6 @@ export default function RootLayout({
                       <i className="fa-solid fa-receipt text-lg"></i>
                       <span>Siparişlerim</span>
                     </Link>
-                    <Link href="/reklam" className="flex items-center gap-2 text-gray-500 hover:text-pink-500 transition-colors">
-                      <i className="fa-solid fa-rectangle-ad text-lg"></i>
-                      <span>Reklam Ver</span>
-                    </Link>
                     <a href="https://discord.gg/gtaworldtr" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-500 hover:text-[#5865F2] transition-colors">
                       <i className="fa-brands fa-discord text-lg"></i>
                       <span>Discord</span>
