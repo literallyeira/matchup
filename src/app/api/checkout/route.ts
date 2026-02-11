@@ -44,8 +44,16 @@ export async function POST(request: Request) {
 
     let appId: string | null = null;
 
-    // Reklam ürünleri için characterId zorunlu değil
-    if (!product.startsWith('ad_')) {
+    if (product.startsWith('ad_')) {
+      // Reklam ürünleri: kullanıcının herhangi bir profili varsa onu kullan
+      const { data: anyApp } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('gtaw_user_id', session.user.gtawId)
+        .limit(1)
+        .maybeSingle();
+      appId = anyApp?.id || null;
+    } else {
       if (!characterId) {
         return NextResponse.json({ error: 'characterId gerekli' }, { status: 400 });
       }
@@ -72,22 +80,26 @@ export async function POST(request: Request) {
       amount: prod.price,
     });
 
+    if (insertError) {
+      console.error('Pending order insert error:', insertError);
+      return NextResponse.json({ error: 'Sipariş oluşturulamadı' }, { status: 500 });
+    }
+
     // Reklam ürünü ise, ads tablosuna inaktif olarak ekle (ödeme sonrası aktifleşecek)
-    if (product.startsWith('ad_') && !insertError) {
+    if (product.startsWith('ad_')) {
       const position = product === 'ad_left' ? 'left' : 'right';
-      await supabase.from('ads').insert({
+      const { error: adInsertError } = await supabase.from('ads').insert({
         gtaw_user_id: session.user.gtawId,
         position,
         image_url: adImageUrl,
         link_url: adLinkUrl,
-        expires_at: new Date().toISOString(), // ödeme sonrası güncellenecek
+        expires_at: new Date().toISOString(),
         is_active: false,
         order_id: orderId,
       });
-    }
-
-    if (insertError) {
-      return NextResponse.json({ error: 'Sipariş oluşturulamadı' }, { status: 500 });
+      if (adInsertError) {
+        console.error('Ad insert error:', adInsertError);
+      }
     }
 
     // Token akışı: önce token üret, sonra /gateway/{token} ile yönlendir (query string 404 veriyor)
