@@ -231,7 +231,7 @@ function HomeContent() {
         setIsLoadingPossible(false);
         return;
       }
-      const res = await fetch(`/api/possible-matches?characterId=${selectedCharacter.id}&limit=20`);
+      const res = await fetch(`/api/possible-matches?characterId=${selectedCharacter.id}&limit=20`, { cache: 'no-store' });
       const data = await res.json();
       setPossibleMatches(data.possibleMatches || []);
     } catch (e) {
@@ -307,10 +307,13 @@ function HomeContent() {
         body: JSON.stringify({ toApplicationId: profile.id, characterId: selectedCharacter.id }),
       });
       const data = res.ok ? await res.json() : {};
-      setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
-      setCurrentPhotoIndex(0);
+      if (res.ok) {
+        setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
+        setCurrentPhotoIndex(0);
+      }
       if (data.remaining !== undefined && limits) setLimits((l) => l ? { ...l, remaining: data.remaining, resetAt: data.resetAt || l.resetAt } : null);
       if (!res.ok && res.status === 429) showToast('Günlük hakkınız doldu.', 'error');
+      if (!res.ok && res.status !== 429) showToast('Dislike kaydedilemedi, tekrar dene.', 'error');
     } catch {
       showToast('Bağlantı hatası', 'error');
     } finally {
