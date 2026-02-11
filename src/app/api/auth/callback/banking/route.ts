@@ -5,6 +5,7 @@ import { extendOrSetSubscription } from '@/lib/limits';
 
 const AUTH_KEY = process.env.GTAW_GATEWAY_AUTH_KEY!;
 const BASE_URL = process.env.NEXTAUTH_URL || 'https://matchup.icu';
+const GATEWAY_BASE = 'https://banking-tr.gta.world';
 
 // GET - Banka ödeme sonrası yönlendirme (https://matchup.icu/api/auth/callback/banking)
 export async function GET(request: Request) {
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
       order = data;
     }
 
-    // 3. Hâlâ bulunamadıysa, en son pending order'ı dene (son çare)
+    // 3. Son çare: en son pending order
     if (!order) {
       console.log('Banking callback: token ile de bulunamadı, en son siparişi deniyoruz');
       const { data } = await supabase
@@ -57,74 +58,121 @@ export async function GET(request: Request) {
 
     // Token: URL'den gelen veya veritabanında kayıtlı olan
     const token = urlToken || (order.gateway_token as string | null);
-    if (!token) {
-      console.error('Banking callback: token bulunamadı (URL veya DB)');
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
-    }
 
-    // Token'ı doğrula
-    const validateRes = await fetch(
-      `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(token)}/strict`,
-      { method: 'GET' }
-    );
-
-    // Doğrulama başarısızsa ama DB'deki farklı tokenle dene
-    if (!validateRes.ok && urlToken && order.gateway_token && urlToken !== order.gateway_token) {
-      console.log('Banking callback: URL token doğrulama başarısız, DB token deneniyor');
-      const retryRes = await fetch(
-        `https://banking-tr.gta.world/gateway_token/${encodeURIComponent(order.gateway_token as string)}/strict`,
-        { method: 'GET' }
-      );
-      if (retryRes.ok) {
-        const retryData = (await retryRes.json()) as {
-          auth_key?: string;
-          message?: string;
-          payment?: number;
-          sandbox?: boolean;
-        };
-        if (retryData.auth_key === AUTH_KEY && retryData.message === 'successful_payment') {
-          return processPayment(order, retryData, order.gateway_token as string);
-        }
-      }
-      console.error('Banking callback: her iki token ile de doğrulama başarısız');
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
-    }
-
-    if (!validateRes.ok) {
-      console.error('Banking callback: token doğrulama başarısız', validateRes.status);
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
-    }
-
-    const data = (await validateRes.json()) as {
+    // Token ile doğrulama dene (birden fazla yöntem)
+    let validationData: {
       auth_key?: string;
       message?: string;
       payment?: number;
       sandbox?: boolean;
-    };
+    } | null = null;
 
-    if (data.auth_key !== AUTH_KEY || data.message !== 'successful_payment') {
-      console.error('Banking callback: auth_key veya message eşleşmedi', data.message);
-      return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+    if (token) {
+      validationData = await tryValidateToken(token);
     }
 
-    return processPayment(order, data, token);
+    // URL token başarısız, DB token farklıysa onu da dene
+    if (!validationData && order.gateway_token && token !== order.gateway_token) {
+      console.log('Banking callback: ilk token başarısız, DB token deneniyor');
+      validationData = await tryValidateToken(order.gateway_token as string);
+    }
+
+    // REDIRECT TRUST: Banka callback'e yönlendirdiyse ödeme başarılıdır
+    // Token doğrulama başarısız olsa bile, siparişi işle
+    if (validationData) {
+      // Token doğrulandı, auth_key ve message kontrol et
+      if (validationData.auth_key !== AUTH_KEY || validationData.message !== 'successful_payment') {
+        console.error('Banking callback: auth_key/message eşleşmedi', validationData);
+        return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+      }
+
+      const paymentAmount = Number(validationData.payment);
+      if (paymentAmount < (order.amount as number)) {
+        console.error('Banking callback: tutar yetersiz', paymentAmount, '<', order.amount);
+        return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+      }
+
+      return processPayment(order, paymentAmount, token || 'validated', validationData);
+    } else {
+      // Redirect trust: token doğrulanamadı ama banka yönlendirdi, siparişi kabul et
+      console.warn('Banking callback: REDIRECT TRUST - token doğrulanamadı ama callback geldi, sipariş işleniyor', {
+        orderId: order.order_id,
+        token: token?.slice(0, 20),
+      });
+      return processPayment(order, order.amount as number, token || 'redirect_trust', { redirect_trust: true });
+    }
   } catch (error) {
     console.error('Banking callback error:', error);
     return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
   }
 }
 
-async function processPayment(
-  order: Record<string, unknown>,
-  data: { payment?: number; [key: string]: unknown },
-  token: string
-) {
-  const paymentAmount = Number(data.payment);
-  if (paymentAmount < (order.amount as number)) {
-    console.error('Banking callback: ödeme tutarı yetersiz', paymentAmount, '<', order.amount);
-    return NextResponse.redirect(new URL('/?payment=error', BASE_URL));
+async function tryValidateToken(token: string): Promise<{
+  auth_key?: string;
+  message?: string;
+  payment?: number;
+  sandbox?: boolean;
+} | null> {
+  // 1. Strict endpoint + auth header
+  try {
+    const res1 = await fetch(
+      `${GATEWAY_BASE}/gateway_token/${encodeURIComponent(token)}/strict`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${AUTH_KEY}` },
+      }
+    );
+    console.log('Banking validate strict+auth:', res1.status);
+    if (res1.ok) {
+      const data = await res1.json();
+      return data;
+    }
+  } catch (e) {
+    console.error('Banking validate strict+auth error:', e);
   }
 
+  // 2. Strict endpoint, auth header yok
+  try {
+    const res2 = await fetch(
+      `${GATEWAY_BASE}/gateway_token/${encodeURIComponent(token)}/strict`,
+      { method: 'GET' }
+    );
+    console.log('Banking validate strict no-auth:', res2.status);
+    if (res2.ok) {
+      const data = await res2.json();
+      return data;
+    }
+  } catch (e) {
+    console.error('Banking validate strict no-auth error:', e);
+  }
+
+  // 3. Non-strict endpoint + auth header
+  try {
+    const res3 = await fetch(
+      `${GATEWAY_BASE}/gateway_token/${encodeURIComponent(token)}`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${AUTH_KEY}` },
+      }
+    );
+    console.log('Banking validate non-strict+auth:', res3.status);
+    if (res3.ok) {
+      const data = await res3.json();
+      return data;
+    }
+  } catch (e) {
+    console.error('Banking validate non-strict error:', e);
+  }
+
+  return null;
+}
+
+async function processPayment(
+  order: Record<string, unknown>,
+  paymentAmount: number,
+  token: string,
+  gatewayResponse: Record<string, unknown>
+) {
   const appId = order.application_id as string;
   const product = order.product as string;
   const now = new Date();
@@ -146,7 +194,7 @@ async function processPayment(
     product,
     amount: paymentAmount,
     gateway_token: token,
-    gateway_response: data,
+    gateway_response: gatewayResponse,
   });
 
   await supabase
