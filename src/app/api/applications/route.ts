@@ -16,6 +16,15 @@ export async function GET(request: NextRequest) {
 
         console.log(`[ADMIN] ${adminName} admin paneline erişti (profiller)`);
 
+        // Admin giriş logunu kaydet
+        try {
+            await supabase.from('logs').insert({
+                action: 'admin_login',
+                admin_name: adminName,
+                details: { info: 'Admin paneline giriş yapıldı' }
+            });
+        } catch { /* ignore */ }
+
         const { data, error } = await supabase
             .from('applications')
             .select('*')

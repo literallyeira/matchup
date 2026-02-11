@@ -14,6 +14,7 @@ interface Log {
         app2?: string;
         application_id?: string;
         name?: string;
+        info?: string;
     };
     created_at: string;
 }
@@ -95,6 +96,7 @@ export default function SuperEiraPage() {
 
     const getActionLabel = (action: string) => {
         switch (action) {
+            case 'admin_login': return 'Admin Girişi';
             case 'create_match': return 'Eşleşme Oluşturuldu';
             case 'delete_match': return 'Eşleşme Silindi';
             case 'delete_application': return 'Başvuru Silindi';
@@ -104,10 +106,11 @@ export default function SuperEiraPage() {
 
     const getActionColor = (action: string) => {
         switch (action) {
+            case 'admin_login': return 'text-blue-400';
             case 'create_match': return 'text-green-400';
             case 'delete_match': return 'text-red-400';
             case 'delete_application': return 'text-orange-400';
-            default: return 'text-blue-400';
+            default: return 'text-gray-400';
         }
     };
 
@@ -201,8 +204,9 @@ export default function SuperEiraPage() {
                                             <span className="text-white font-medium">{log.admin_name}</span>
                                         </div>
                                         <div className="text-[var(--matchup-text-muted)] text-sm">
-                                            {log.details.app1} & {log.details.app2}
-                                            {log.details.name && ` (${log.details.name})`}
+                                            {log.details.app1 && log.details.app2 && <>{log.details.app1} & {log.details.app2}</>}
+                                            {log.details.name && <span> ({log.details.name})</span>}
+                                            {log.details.info && <span>{log.details.info}</span>}
                                         </div>
                                     </div>
                                     <div className="text-right">
