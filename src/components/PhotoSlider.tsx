@@ -92,22 +92,23 @@ export function PhotoSlider({ photos, value, onChange, children, aspectClass = '
         </div>
       )}
       {photos.length > 1 && (
-        <>
-          <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
-            {photos.map((_, i) => (
-              <div key={i} className={`h-1 rounded-full transition-all ${i === safeIdx ? 'bg-white w-6' : 'bg-white/40 w-4'}`} />
-            ))}
-          </div>
-          <div
-            className="absolute inset-0 z-[5] cursor-grab active:cursor-grabbing"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-            onMouseDown={onMouseDown}
-          />
-        </>
+        <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
+          {photos.map((_, i) => (
+            <div key={i} className={`h-1 rounded-full transition-all ${i === safeIdx ? 'bg-white w-6' : 'bg-white/40 w-4'}`} />
+          ))}
+        </div>
       )}
       {children}
+      {/* Mouse + touch sürükleme katmanı en üstte (DOM sırası) */}
+      {photos.length > 1 && (
+        <div
+          className="absolute inset-0 z-20 cursor-grab active:cursor-grabbing"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onMouseDown={onMouseDown}
+        />
+      )}
     </div>
   );
 }

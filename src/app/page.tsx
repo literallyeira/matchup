@@ -882,12 +882,12 @@ function HomeContent() {
                   </PhotoSlider>
 
                   {/* Prompt cevapları - kartın altında */}
-                  {currentCard.prompts && Object.keys(currentCard.prompts).length > 0 && (
-                    <div className="bg-[var(--matchup-bg-card)] px-5 py-4 space-y-3">
+                  {currentCard.prompts && Object.keys(currentCard.prompts).filter(k => currentCard.prompts?.[k]?.trim()).length > 0 && (
+                    <div className="rounded-xl bg-white/[0.06] border border-white/10 px-4 py-3 space-y-2.5 mx-4 mb-1">
                       {PROFILE_PROMPTS.filter(p => currentCard.prompts?.[p.key]?.trim()).map(p => (
-                        <div key={p.key}>
-                          <p className="text-[var(--matchup-text-muted)] text-[11px] font-medium uppercase tracking-wide">{p.label}</p>
-                          <p className="text-sm text-white/90 mt-0.5">{currentCard.prompts![p.key]}</p>
+                        <div key={p.key} className="pl-3 border-l-2 border-[var(--matchup-primary)]/60">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50">{p.label}</p>
+                          <p className="text-sm text-white/90 leading-relaxed mt-0.5">{currentCard.prompts![p.key]}</p>
                         </div>
                       ))}
                     </div>
@@ -956,11 +956,11 @@ function HomeContent() {
                   </MatchPhotoGallery>
                   {/* Promptlar */}
                   {match.matchedWith.prompts && Object.keys(match.matchedWith.prompts).filter(k => match.matchedWith.prompts?.[k]?.trim()).length > 0 && (
-                    <div className="px-4 pt-3 pb-1 space-y-2 border-b border-white/5">
+                    <div className="mx-4 mt-3 mb-1 rounded-xl bg-white/[0.06] border border-white/10 px-4 py-3 space-y-2.5">
                       {PROFILE_PROMPTS.filter(p => match.matchedWith.prompts?.[p.key]?.trim()).map(p => (
-                        <div key={p.key}>
-                          <p className="text-[var(--matchup-text-muted)] text-[10px] font-medium uppercase tracking-wide">{p.label}</p>
-                          <p className="text-sm text-white/80 mt-0.5">{match.matchedWith.prompts![p.key]}</p>
+                        <div key={p.key} className="pl-3 border-l-2 border-[var(--matchup-primary)]/60">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50">{p.label}</p>
+                          <p className="text-sm text-white/90 leading-relaxed mt-0.5">{match.matchedWith.prompts![p.key]}</p>
                         </div>
                       ))}
                     </div>
