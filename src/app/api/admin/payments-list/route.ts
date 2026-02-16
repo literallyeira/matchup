@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 
 // GET - Tüm ödemeleri listele (admin)
 export async function GET(request: NextRequest) {
-  const password = request.headers.get('Authorization');
+  const password = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim();
   if (password !== process.env.ADMIN_PASSWORD) {
     return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 });
   }

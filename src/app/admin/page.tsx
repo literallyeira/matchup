@@ -30,6 +30,8 @@ export default function AdminPage() {
     const [paymentsList, setPaymentsList] = useState<Array<{ id: string; application_id: string; product: string; amount: number; created_at?: string; first_name?: string; last_name?: string; character_name?: string }>>([]);
     const [loadingSubs, setLoadingSubs] = useState(false);
     const [loadingPayments, setLoadingPayments] = useState(false);
+    const [paymentStats, setPaymentStats] = useState<{ total: number; lastWeek: number; fromSubscriptions: number; fromBoost: number; fromAds: number } | null>(null);
+    const [loadingPaymentStats, setLoadingPaymentStats] = useState(false);
     const [adsList, setAdsList] = useState<Array<{ id: string; gtaw_user_id: number; position: string; image_url: string; link_url: string; expires_at: string; is_active: boolean; created_at: string }>>([]);
     const [loadingAds, setLoadingAds] = useState(false);
     const [linkStats, setLinkStats] = useState<{ total: number; today: number; last7Days: number } | null>(null);
@@ -261,7 +263,7 @@ export default function AdminPage() {
         setLoadingPayments(true);
         try {
             const res = await fetch('/api/admin/payments-list', {
-                headers: { Authorization: password || localStorage.getItem('adminPassword') || '' },
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
             });
             if (res.ok) {
                 const data = await res.json();
@@ -269,6 +271,20 @@ export default function AdminPage() {
             } else setPaymentsList([]);
         } catch { setPaymentsList([]); }
         finally { setLoadingPayments(false); }
+    };
+
+    const fetchPaymentStats = async () => {
+        setLoadingPaymentStats(true);
+        try {
+            const res = await fetch('/api/admin/payments-stats', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPaymentStats(data);
+            } else setPaymentStats(null);
+        } catch { setPaymentStats(null); }
+        finally { setLoadingPaymentStats(false); }
     };
 
     const fetchAdsList = async () => {
@@ -363,7 +379,10 @@ export default function AdminPage() {
     }, [activeTab, isAuthenticated]);
 
     useEffect(() => {
-        if (activeTab === 'payments' && isAuthenticated) fetchPaymentsList();
+        if (activeTab === 'payments' && isAuthenticated) {
+            fetchPaymentsList();
+            fetchPaymentStats();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
 
@@ -556,7 +575,7 @@ export default function AdminPage() {
                             {testMode ? 'Test Modu: Açık' : 'Test Modu: Kapalı'}
                         </button>
                         <button
-                            onClick={() => { fetchApplications(); fetchMatches(); fetchLinkStats(); fetchReferralStats(); }}
+                            onClick={() => { fetchApplications(); fetchMatches(); fetchLinkStats(); fetchReferralStats(); if (activeTab === 'payments') { fetchPaymentStats(); } }}
                             className="btn-secondary"
                         >
                             <i className="fa-solid fa-rotate-right mr-2"></i>Yenile
@@ -999,6 +1018,49 @@ export default function AdminPage() {
 
                 {activeTab === 'payments' && (
                     <div className="space-y-6">
+                        {/* Ödeme istatistikleri */}
+                        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 animate-fade-in">
+                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                <div>
+                                    <h3 className="font-bold text-white flex items-center gap-2">
+                                        <i className="fa-solid fa-chart-line text-emerald-400" />
+                                        Ödeme İstatistikleri
+                                    </h3>
+                                    <p className="text-[var(--matchup-text-muted)] text-sm mt-0.5">Toplam ve kategorilere göre gelir</p>
+                                </div>
+                                {loadingPaymentStats ? (
+                                    <div className="flex items-center gap-2 text-[var(--matchup-text-muted)]">
+                                        <i className="fa-solid fa-spinner fa-spin" /> Yükleniyor...
+                                    </div>
+                                ) : paymentStats ? (
+                                    <div className="flex gap-6 flex-wrap">
+                                        <div className="text-center">
+                                            <p className="text-2xl font-bold text-white">{paymentStats.total.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-xs text-[var(--matchup-text-muted)]">Toplam</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-2xl font-bold text-emerald-400">{paymentStats.lastWeek.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-xs text-[var(--matchup-text-muted)]">Son 7 gün</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-xl font-bold text-violet-400">{paymentStats.fromSubscriptions.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-xs text-[var(--matchup-text-muted)]">Üyelikler (Plus+Pro)</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-xl font-bold text-yellow-400">{paymentStats.fromBoost.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-xs text-[var(--matchup-text-muted)]">Boost</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-xl font-bold text-pink-400">{paymentStats.fromAds.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-xs text-[var(--matchup-text-muted)]">Reklamlar</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-[var(--matchup-text-muted)] text-sm">Veri yok</p>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="card animate-fade-in">
                             <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-receipt mr-2 text-[var(--matchup-primary)]"></i>Ödemeler</h2>
                             <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Tüm tamamlanan ödemeler (geçmiş).</p>
