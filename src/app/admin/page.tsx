@@ -32,6 +32,8 @@ export default function AdminPage() {
     const [loadingPayments, setLoadingPayments] = useState(false);
     const [adsList, setAdsList] = useState<Array<{ id: string; gtaw_user_id: number; position: string; image_url: string; link_url: string; expires_at: string; is_active: boolean; created_at: string }>>([]);
     const [loadingAds, setLoadingAds] = useState(false);
+    const [linkStats, setLinkStats] = useState<{ total: number; today: number; last7Days: number } | null>(null);
+    const [loadingLinkStats, setLoadingLinkStats] = useState(false);
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -281,6 +283,20 @@ export default function AdminPage() {
         finally { setLoadingAds(false); }
     };
 
+    const fetchLinkStats = async () => {
+        setLoadingLinkStats(true);
+        try {
+            const res = await fetch('/api/admin/link-stats', {
+                headers: { Authorization: password || localStorage.getItem('adminPassword') || '' },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setLinkStats(data.gtawfb || null);
+            } else setLinkStats(null);
+        } catch { setLinkStats(null); }
+        finally { setLoadingLinkStats(false); }
+    };
+
     const handleDeactivateAd = async (adId: string) => {
         if (!confirm('Bu reklamı deaktif etmek istediğinize emin misiniz?')) return;
         try {
@@ -369,6 +385,7 @@ export default function AdminPage() {
             fetchApplications(savedPassword);
             fetchMatches(savedPassword);
             fetchAdsEnabled();
+            fetchLinkStats();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -518,7 +535,7 @@ export default function AdminPage() {
                             {testMode ? 'Test Modu: Açık' : 'Test Modu: Kapalı'}
                         </button>
                         <button
-                            onClick={() => { fetchApplications(); fetchMatches(); }}
+                            onClick={() => { fetchApplications(); fetchMatches(); fetchLinkStats(); }}
                             className="btn-secondary"
                         >
                             <i className="fa-solid fa-rotate-right mr-2"></i>Yenile
@@ -529,6 +546,41 @@ export default function AdminPage() {
                         >
                             Çıkış
                         </button>
+                    </div>
+                </div>
+
+                {/* Reklam linki istatistikleri */}
+                <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-orange-500/10 to-pink-500/10 border border-orange-500/20 animate-fade-in">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                            <h3 className="font-bold text-white flex items-center gap-2">
+                                <i className="fa-solid fa-link text-orange-400" />
+                                gtaw.link/matchupfb
+                            </h3>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mt-0.5">Reklam linkinden gelen ziyaretçiler</p>
+                        </div>
+                        {loadingLinkStats ? (
+                            <div className="flex items-center gap-2 text-[var(--matchup-text-muted)]">
+                                <i className="fa-solid fa-spinner fa-spin" /> Yükleniyor...
+                            </div>
+                        ) : linkStats ? (
+                            <div className="flex gap-6">
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-white">{linkStats.total.toLocaleString('tr-TR')}</p>
+                                    <p className="text-xs text-[var(--matchup-text-muted)]">Toplam</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-orange-400">{linkStats.last7Days.toLocaleString('tr-TR')}</p>
+                                    <p className="text-xs text-[var(--matchup-text-muted)]">Son 7 gün</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-pink-400">{linkStats.today.toLocaleString('tr-TR')}</p>
+                                    <p className="text-xs text-[var(--matchup-text-muted)]">Bugün</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-[var(--matchup-text-muted)] text-sm">Veri yok</p>
+                        )}
                     </div>
                 </div>
 
