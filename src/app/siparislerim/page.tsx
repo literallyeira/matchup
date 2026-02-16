@@ -116,7 +116,7 @@ export default function SiparislerimPage() {
                 >
                   <div className="flex justify-between items-start gap-2">
                     <span className="font-medium">{getProductLabel(order.product)}</span>
-                    <span className="text-[var(--matchup-primary)] font-semibold whitespace-nowrap">₺{order.amount}</span>
+                    <span className="text-[var(--matchup-primary)] font-semibold whitespace-nowrap">${order.amount}</span>
                   </div>
                   {order.character_name && order.character_name !== '-' && (
                     <p className="text-xs text-[var(--matchup-text-muted)] mt-1">{order.character_name}</p>

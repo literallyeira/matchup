@@ -1035,23 +1035,23 @@ export default function AdminPage() {
                                 ) : paymentStats ? (
                                     <div className="flex gap-6 flex-wrap">
                                         <div className="text-center">
-                                            <p className="text-2xl font-bold text-white">{paymentStats.total.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-2xl font-bold text-white">${paymentStats.total.toLocaleString('tr-TR')}</p>
                                             <p className="text-xs text-[var(--matchup-text-muted)]">Toplam</p>
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-2xl font-bold text-emerald-400">{paymentStats.lastWeek.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-2xl font-bold text-emerald-400">${paymentStats.lastWeek.toLocaleString('tr-TR')}</p>
                                             <p className="text-xs text-[var(--matchup-text-muted)]">Son 7 gün</p>
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-xl font-bold text-violet-400">{paymentStats.fromSubscriptions.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-xl font-bold text-violet-400">${paymentStats.fromSubscriptions.toLocaleString('tr-TR')}</p>
                                             <p className="text-xs text-[var(--matchup-text-muted)]">Üyelikler (Plus+Pro)</p>
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-xl font-bold text-yellow-400">{paymentStats.fromBoost.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-xl font-bold text-yellow-400">${paymentStats.fromBoost.toLocaleString('tr-TR')}</p>
                                             <p className="text-xs text-[var(--matchup-text-muted)]">Boost</p>
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-xl font-bold text-pink-400">{paymentStats.fromAds.toLocaleString('tr-TR')}₺</p>
+                                            <p className="text-xl font-bold text-pink-400">${paymentStats.fromAds.toLocaleString('tr-TR')}</p>
                                             <p className="text-xs text-[var(--matchup-text-muted)]">Reklamlar</p>
                                         </div>
                                     </div>
@@ -1089,7 +1089,7 @@ export default function AdminPage() {
                                                     <td className="py-3 pr-4">{p.first_name} {p.last_name}</td>
                                                     <td className="py-3 pr-4 text-[var(--matchup-primary)]">{p.character_name || '-'}</td>
                                                     <td className="py-3 pr-4">{p.product === 'pro' ? 'MatchUp Pro' : p.product === 'plus' ? 'MatchUp+' : p.product === 'boost' ? 'Boost' : p.product === 'ad_left' ? 'Reklam (Sol)' : p.product === 'ad_right' ? 'Reklam (Sağ)' : p.product}</td>
-                                                    <td className="py-3 pr-4 font-semibold text-[var(--matchup-primary)]">₺{p.amount}</td>
+                                                    <td className="py-3 pr-4 font-semibold text-[var(--matchup-primary)]">${p.amount}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
