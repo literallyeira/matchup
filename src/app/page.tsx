@@ -557,7 +557,17 @@ function HomeContent() {
       <main className="py-12 px-4">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-6">
-            <button onClick={() => setShowForm(false)} className="btn-secondary text-sm" disabled={!hasApplication}>
+            <button
+              onClick={() => {
+              if (hasApplication) {
+                setShowForm(false);
+              } else {
+                setSelectedCharacter(null);
+                saveSelectedCharacter(null);
+              }
+            }}
+              className="btn-secondary text-sm"
+            >
               <i className="fa-solid fa-arrow-left mr-1" /> Geri
             </button>
             <span className="text-[var(--matchup-text-muted)] text-sm">
