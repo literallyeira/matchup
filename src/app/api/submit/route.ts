@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import {
+    getOrCreateRefCode,
+    getReferrerByCode,
+    hasPriorApplication,
+    recordReferralAndMaybeGrantPro,
+} from '@/lib/referral';
 
 export async function POST(request: NextRequest) {
     try {
-        // Check authentication
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.gtawId) {
@@ -20,10 +25,10 @@ export async function POST(request: NextRequest) {
         const {
             firstName, lastName, age, weight, gender, sexualPreference,
             phone, facebrowser, description, photoUrl, extraPhotos, prompts,
-            characterId, characterName
+            characterId, characterName,
+            ref: refCode
         } = body;
 
-        // Validate required fields (phone is optional)
         if (!firstName || !lastName || !age || !gender || !sexualPreference || !facebrowser || !description || !photoUrl) {
             return NextResponse.json(
                 { error: 'Tüm alanlar doldurulmalıdır!' },
@@ -38,7 +43,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Validate age
         if (parseInt(age) < 18) {
             return NextResponse.json(
                 { error: '18 yaşından küçükler başvuru yapamaz!' },
@@ -46,8 +50,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Create or Update application (upsert based on gtaw_user_id and character_id)
-        const { error: upsertError } = await supabase
+        const gtawUserId = session.user.gtawId;
+
+        // Yeni kullanıcı mı? (önceden hesabı yok)
+        const wasNewUser = !(await hasPriorApplication(gtawUserId));
+
+        const { data: upserted, error: upsertError } = await supabase
             .from('applications')
             .upsert({
                 first_name: firstName,
@@ -60,7 +68,7 @@ export async function POST(request: NextRequest) {
                 facebrowser,
                 description,
                 photo_url: photoUrl,
-                gtaw_user_id: session.user.gtawId,
+                gtaw_user_id: gtawUserId,
                 character_id: characterId,
                 character_name: characterName,
                 extra_photos: Array.isArray(extraPhotos) ? extraPhotos.filter((u: string) => u?.trim()).slice(0, 4) : [],
@@ -68,7 +76,9 @@ export async function POST(request: NextRequest) {
                 updated_at: new Date().toISOString()
             }, {
                 onConflict: 'gtaw_user_id,character_id'
-            });
+            })
+            .select('id')
+            .single();
 
         if (upsertError) {
             console.error('Upsert error:', upsertError);
@@ -77,6 +87,21 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        // Referans: yeni kullanıcı + geçerli ref → referral kaydı, 20'de Pro
+        if (wasNewUser && refCode && typeof refCode === 'string' && refCode.trim()) {
+            const referrerGtawId = await getReferrerByCode(refCode.trim());
+            if (referrerGtawId && upserted?.id) {
+                try {
+                    await recordReferralAndMaybeGrantPro(referrerGtawId, gtawUserId, upserted.id);
+                } catch (e) {
+                    console.error('Referral record error:', e);
+                }
+            }
+        }
+
+        // Bu kullanıcının referans kodu olsun (davet linki paylaşabilsin)
+        await getOrCreateRefCode(gtawUserId).catch(() => {});
 
         return NextResponse.json({ success: true });
     } catch (error) {

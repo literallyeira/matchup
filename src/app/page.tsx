@@ -10,6 +10,7 @@ import { PROFILE_PROMPTS } from '@/lib/prompts';
 import { getInlineBadges } from '@/lib/badges-client';
 import { isCompatible } from '@/lib/compatibility';
 import { PhotoSlider } from '@/components/PhotoSlider';
+import { getStoredRef, clearStoredRef } from '@/components/RefTracker';
 
 interface Character {
   id: number;
@@ -97,6 +98,8 @@ function HomeContent() {
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [limits, setLimits] = useState<{ tier: string; dailyLimit: number; remaining: number; resetAt: string; boostExpiresAt: string | null; subscriptionExpiresAt?: string | null } | null>(null);
   const [showShop, setShowShop] = useState(false);
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [checkoutPending, setCheckoutPending] = useState<string | null>(null);
   const [likedByCount, setLikedByCount] = useState<number | null>(null);
   const [isDeletingProfile, setIsDeletingProfile] = useState(false);
@@ -382,6 +385,7 @@ function HomeContent() {
         setIsSubmitting(false);
         return;
       }
+      const refCode = getStoredRef();
       const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -392,10 +396,12 @@ function HomeContent() {
           lastName: selectedCharacter.lastname,
           characterId: selectedCharacter.id,
           characterName: `${selectedCharacter.firstname} ${selectedCharacter.lastname}`,
+          ...(refCode && { ref: refCode }),
         }),
       });
       const result = await res.json();
       if (res.ok) {
+        if (refCode) clearStoredRef();
         showToast(hasApplication ? 'Profil güncellendi!' : 'Profil oluşturuldu!', 'success');
         fetchMyData();
       } else {
@@ -781,6 +787,21 @@ function HomeContent() {
             <button onClick={() => setShowShop(true)} className="btn-secondary text-sm flex-1 whitespace-nowrap">
               <i className="fa-solid fa-store mr-1.5" /> Mağaza
             </button>
+            <button
+              onClick={async () => {
+                setShowReferralModal(true);
+                if (!inviteLink) {
+                  try {
+                    const res = await fetch('/api/me/referral-code');
+                    const data = await res.json();
+                    if (res.ok && data.inviteLink) setInviteLink(data.inviteLink);
+                  } catch { /* ignore */ }
+                }
+              }}
+              className="btn-secondary text-sm flex-1 whitespace-nowrap"
+            >
+              <i className="fa-solid fa-user-plus mr-1.5" /> Davet Et
+            </button>
             <Link href="/istatistikler" className="btn-secondary text-sm flex-1 whitespace-nowrap text-center">
               <i className="fa-solid fa-chart-simple mr-1.5" /> İstatistik
             </Link>
@@ -1044,7 +1065,45 @@ function HomeContent() {
                 <p className="text-lg font-bold mb-2">5.000$</p>
                 <button onClick={() => handleCheckout('boost')} disabled={!!checkoutPending} className="btn-primary text-sm py-2">Satın Al</button>
               </div>
+              <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                <h3 className="font-bold text-emerald-400 mb-1"><i className="fa-solid fa-gift mr-2" />Ücretsiz Pro</h3>
+                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">20 yeni arkadaşını davet et, 1 yıl MatchUp Pro kazan! Sadece daha önce hesabı olmayanlar sayılır.</p>
+                <button onClick={() => { setShowShop(false); setShowReferralModal(true); if (!inviteLink) { fetch('/api/me/referral-code').then(r => r.json()).then(d => { if (d.inviteLink) setInviteLink(d.inviteLink); }); } }} className="btn-secondary text-sm py-2 w-full">
+                  <i className="fa-solid fa-user-plus mr-2" />Davet Linkimi Al
+                </button>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showReferralModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in" onClick={() => setShowReferralModal(false)}>
+          <div className="card max-w-sm w-full animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold"><i className="fa-solid fa-user-plus mr-2 text-[var(--matchup-primary)]" />Davet Et, Pro Kazan</h2>
+              <button onClick={() => setShowReferralModal(false)} className="text-[var(--matchup-text-muted)] hover:text-white text-2xl">&times;</button>
+            </div>
+            <p className="text-sm text-[var(--matchup-text-muted)] mb-4">20 yeni kullanıcıyı (daha önce hesabı olmayan) bu linkle davet eden 1 yıl MatchUp Pro kazanır.</p>
+            {inviteLink ? (
+              <div className="flex gap-2">
+                <input readOnly value={inviteLink} className="flex-1 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] text-sm truncate" />
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(inviteLink);
+                    showToast('Link kopyalandı!', 'success');
+                  }}
+                  className="btn-primary text-sm py-2 px-4 whitespace-nowrap"
+                >
+                  <i className="fa-solid fa-copy mr-2" />Kopyala
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <div className="animate-spin w-8 h-8 border-2 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto" />
+                <p className="mt-2 text-sm text-[var(--matchup-text-muted)]">Link hazırlanıyor...</p>
+              </div>
+            )}
           </div>
         </div>
       )}

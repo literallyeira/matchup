@@ -20,7 +20,7 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads'>('applications');
+    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'referrals'>('applications');
     const [subModal, setSubModal] = useState<{ appId: string; name: string; currentTier: string } | null>(null);
     const [subTier, setSubTier] = useState('free');
     const [subDays, setSubDays] = useState(7);
@@ -34,6 +34,8 @@ export default function AdminPage() {
     const [loadingAds, setLoadingAds] = useState(false);
     const [linkStats, setLinkStats] = useState<{ total: number; today: number; last7Days: number } | null>(null);
     const [loadingLinkStats, setLoadingLinkStats] = useState(false);
+    const [referralStats, setReferralStats] = useState<Array<{ code: string; gtawUserId: number; ownerName: string; count: number }>>([]);
+    const [loadingReferralStats, setLoadingReferralStats] = useState(false);
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -287,7 +289,7 @@ export default function AdminPage() {
         setLoadingLinkStats(true);
         try {
             const res = await fetch('/api/admin/link-stats', {
-                headers: { Authorization: password || localStorage.getItem('adminPassword') || '' },
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
             });
             if (res.ok) {
                 const data = await res.json();
@@ -295,6 +297,20 @@ export default function AdminPage() {
             } else setLinkStats(null);
         } catch { setLinkStats(null); }
         finally { setLoadingLinkStats(false); }
+    };
+
+    const fetchReferralStats = async () => {
+        setLoadingReferralStats(true);
+        try {
+            const res = await fetch('/api/admin/referral-stats', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setReferralStats(data.referrals || []);
+            } else setReferralStats([]);
+        } catch { setReferralStats([]); }
+        finally { setLoadingReferralStats(false); }
     };
 
     const handleDeactivateAd = async (adId: string) => {
@@ -353,6 +369,11 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (activeTab === 'ads' && isAuthenticated) fetchAdsList();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
+    useEffect(() => {
+        if (activeTab === 'referrals' && isAuthenticated) fetchReferralStats();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
 
@@ -535,7 +556,7 @@ export default function AdminPage() {
                             {testMode ? 'Test Modu: Açık' : 'Test Modu: Kapalı'}
                         </button>
                         <button
-                            onClick={() => { fetchApplications(); fetchMatches(); fetchLinkStats(); }}
+                            onClick={() => { fetchApplications(); fetchMatches(); fetchLinkStats(); fetchReferralStats(); }}
                             className="btn-secondary"
                         >
                             <i className="fa-solid fa-rotate-right mr-2"></i>Yenile
@@ -630,6 +651,15 @@ export default function AdminPage() {
                             }`}
                     >
                         <i className="fa-solid fa-rectangle-ad mr-2"></i>Reklamlar
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('referrals')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'referrals'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-user-plus mr-2"></i>Referanslar ({referralStats.length})
                     </button>
                 </div>
 
@@ -1059,6 +1089,54 @@ export default function AdminPage() {
                                             </div>
                                         );
                                     })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'referrals' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-user-plus mr-2 text-emerald-400"></i>Referans Kodları</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Oluşturulan ref kodları, sahipleri ve aldıkları davet sayısı. 20 davet = 1 yıl Pro.</p>
+                            {loadingReferralStats ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : referralStats.length === 0 ? (
+                                <p className="text-[var(--matchup-text-muted)] py-8 text-center">Henüz referans kodu oluşturulmamış.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-white/10 text-left">
+                                                <th className="pb-3 pr-4 font-semibold">Kod</th>
+                                                <th className="pb-3 pr-4 font-semibold">Sahip</th>
+                                                <th className="pb-3 pr-4 font-semibold">GTAW ID</th>
+                                                <th className="pb-3 pr-4 font-semibold">Davet Sayısı</th>
+                                                <th className="pb-3 font-semibold">Link</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {referralStats.map((r) => (
+                                                <tr key={r.code} className="border-b border-white/5 hover:bg-white/5">
+                                                    <td className="py-3 pr-4 font-mono text-emerald-400">{r.code}</td>
+                                                    <td className="py-3 pr-4">{r.ownerName || '—'}</td>
+                                                    <td className="py-3 pr-4 text-gray-400">{r.gtawUserId}</td>
+                                                    <td className="py-3 pr-4">
+                                                        <span className={r.count >= 20 ? 'text-emerald-400 font-bold' : ''}>{r.count}</span>
+                                                        {r.count >= 20 && <span className="ml-1 text-xs text-emerald-400">(Pro kazandı)</span>}
+                                                    </td>
+                                                    <td className="py-3">
+                                                        <a href={`https://matchup.icu?ref=${r.code}`} target="_blank" rel="noopener noreferrer" className="text-[var(--matchup-primary)] hover:underline text-xs truncate max-w-[180px] block">
+                                                            matchup.icu?ref={r.code}
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
                         </div>

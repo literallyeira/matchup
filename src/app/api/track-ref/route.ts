@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-const ALLOWED_REFS = ['gtawfb'];
-
 // POST - Referans linkinden gelen ziyareti kaydet (public, auth yok)
+// Tüm ref'ler kabul edilir (gtawfb, kullanıcı kodları vb.)
 export async function POST(request: Request) {
   try {
     const { ref } = await request.json();
 
-    if (!ref || typeof ref !== 'string' || !ALLOWED_REFS.includes(ref)) {
+    if (!ref || typeof ref !== 'string' || ref.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(ref)) {
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
