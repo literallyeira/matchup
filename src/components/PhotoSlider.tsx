@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 
 const SWIPE_THRESHOLD = 50;
 
@@ -11,9 +12,10 @@ interface PhotoSliderProps {
   children?: React.ReactNode;
   aspectClass?: string;
   emptyIcon?: React.ReactNode;
+  priority?: boolean;
 }
 
-export function PhotoSlider({ photos, value, onChange, children, aspectClass = 'aspect-[4/5]', emptyIcon }: PhotoSliderProps) {
+export function PhotoSlider({ photos, value, onChange, children, aspectClass = 'aspect-[4/5]', emptyIcon, priority = false }: PhotoSliderProps) {
   const [dragOffset, setDragOffset] = useState(0);
   const startX = useRef(0);
   const isDragging = useRef(false);
@@ -79,10 +81,13 @@ export function PhotoSlider({ photos, value, onChange, children, aspectClass = '
           className="w-full h-full flex transition-transform duration-200 ease-out"
           style={{ transform: `translateX(${dragOffset}px)` }}
         >
-          <img
+          <Image
             src={photos[safeIdx]}
             alt=""
-            className="w-full h-full flex-shrink-0 object-cover object-top pointer-events-none"
+            fill
+            className="flex-shrink-0 object-cover object-top pointer-events-none"
+            sizes="(max-width: 640px) 100vw, 480px"
+            priority={priority && safeIdx === 0}
             draggable={false}
           />
         </div>
@@ -99,7 +104,6 @@ export function PhotoSlider({ photos, value, onChange, children, aspectClass = '
         </div>
       )}
       {children}
-      {/* Mouse + touch sürükleme katmanı en üstte (DOM sırası) */}
       {photos.length > 1 && (
         <div
           className="absolute inset-0 z-20 cursor-grab active:cursor-grabbing"

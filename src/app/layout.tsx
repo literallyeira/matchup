@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import Script from "next/script";
 import "./globals.css";
 import { Providers } from "./providers";
 import AdBanners from "@/components/AdBanners";
@@ -35,9 +36,15 @@ export default function RootLayout({
   return (
     <html lang="tr" className={inter.variable}>
       <head>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+        <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossOrigin="anonymous" />
       </head>
       <body className={`${inter.className} antialiased min-h-screen flex flex-col`}>
+        <Script id="font-awesome-loader" strategy="afterInteractive">{`
+          var l = document.createElement('link');
+          l.rel = 'stylesheet';
+          l.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+          document.head.appendChild(l);
+        `}</Script>
         <Providers>
           <AdBanners />
           <div className="flex-1 w-full">

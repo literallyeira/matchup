@@ -21,7 +21,9 @@ export async function GET() {
     const left = data?.find((a: { position: string }) => a.position === 'left') || null;
     const right = data?.find((a: { position: string }) => a.position === 'right') || null;
 
-    return NextResponse.json({ left, right });
+    return NextResponse.json({ left, right }, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=120' },
+    });
   } catch (error) {
     console.error('Ads error:', error);
     return NextResponse.json({ left: null, right: null });

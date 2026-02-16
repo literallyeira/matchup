@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -146,18 +146,6 @@ function HomeContent() {
   }, [selectedCharacter, testMode]);
 
   useEffect(() => {
-    if (hasApplication && selectedCharacter && !showForm) fetchLimits();
-  }, [hasApplication, selectedCharacter, showForm, fetchLimits]);
-
-  useEffect(() => {
-    if (!hasApplication || !selectedCharacter || showForm) return;
-    fetch(`/api/liked-me?characterId=${selectedCharacter.id}`)
-      .then((r) => r.ok ? r.json() : { count: 0 })
-      .then((d) => setLikedByCount(d.count ?? 0))
-      .catch(() => setLikedByCount(0));
-  }, [hasApplication, selectedCharacter?.id, showForm]);
-
-  useEffect(() => {
     const payment = searchParams.get('payment');
     if (payment === 'success') {
       showToast('Ödeme başarılı! Özellikleriniz aktif.', 'success');
@@ -208,12 +196,14 @@ function HomeContent() {
         setIsLoadingMatches(false);
         return;
       }
-      const res = await fetch(`/api/my-matches?characterId=${selectedCharacter.id}`);
+      const res = await fetch(`/api/init?characterId=${selectedCharacter.id}`);
       const data = await res.json();
       setMatches(data.matches || []);
       setHasApplication(!!data.hasApplication);
       setUserApplication(data.application || null);
       setShowForm(!data.hasApplication);
+      if (data.limits) setLimits(data.limits);
+      if (data.likedByCount != null) setLikedByCount(data.likedByCount);
     } catch (e) {
       console.error(e);
     } finally {
@@ -231,7 +221,7 @@ function HomeContent() {
         setIsLoadingPossible(false);
         return;
       }
-      const res = await fetch(`/api/possible-matches?characterId=${selectedCharacter.id}&limit=20`, { cache: 'no-store' });
+      const res = await fetch(`/api/possible-matches?characterId=${selectedCharacter.id}&limit=20`);
       const data = await res.json();
       setPossibleMatches(data.possibleMatches || []);
     } catch (e) {
@@ -257,9 +247,12 @@ function HomeContent() {
     }
   }, [hasApplication, activeTab, showForm, fetchPossibleMatches]);
 
-  // Eşleşmeler sekmesine geçince listeyi anlık güncelle
+  // Eşleşmeler sekmesine geçince listeyi güncelle (30s cache)
+  const matchesFetchedAt = useRef(0);
   useEffect(() => {
     if (hasApplication && activeTab === 'matches' && selectedCharacter && !testMode) {
+      if (Date.now() - matchesFetchedAt.current < 30000) return;
+      matchesFetchedAt.current = Date.now();
       fetch(`/api/my-matches?characterId=${selectedCharacter.id}`)
         .then((res) => res.json())
         .then((data) => setMatches(data.matches || []))
@@ -814,7 +807,7 @@ function HomeContent() {
                 <div className="relative rounded-2xl overflow-hidden border border-orange-500/20 shadow-lg shadow-orange-500/5">
                   <div className="flex items-center gap-3 p-3 bg-white/5">
                     {spotlight.photo_url && (
-                      <img src={spotlight.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-orange-400/50" />
+                      <Image src={spotlight.photo_url} alt="" width={48} height={48} className="w-12 h-12 rounded-full object-cover border-2 border-orange-400/50" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate">{spotlight.first_name} {spotlight.last_name}</p>

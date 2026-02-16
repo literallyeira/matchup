@@ -245,7 +245,7 @@ export default function BegenilerPage() {
                 ) : (
                 <div className="relative w-full aspect-[3/2] overflow-hidden">
                   {profile.photo_url ? (
-                    <img src={profile.photo_url} alt="" className="w-full h-full object-cover object-top" />
+                    <Image src={profile.photo_url} alt="" fill className="object-cover object-top" sizes="(max-width: 640px) 100vw, 480px" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center">
                       <i className="fa-solid fa-user text-4xl text-white/40" />
