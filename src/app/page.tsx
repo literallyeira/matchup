@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import type { Application } from '@/lib/supabase';
 import { PROFILE_PROMPTS } from '@/lib/prompts';
 import { getInlineBadges } from '@/lib/badges-client';
+import { isCompatible } from '@/lib/compatibility';
 import { PhotoSlider } from '@/components/PhotoSlider';
 
 interface Character {
@@ -808,7 +809,7 @@ function HomeContent() {
         {activeTab === 'discover' && (
           <div className="min-h-[500px] flex flex-col items-center justify-center">
             {/* Günün Profili - eşleşmiş kişileri gösterme */}
-            {spotlight && !isLoadingPossible && currentCard && spotlight.id !== currentCard.id && !matches.some(m => m.matchedWith.id === spotlight.id) && (
+            {spotlight && userApplication && isCompatible(userApplication.gender, userApplication.sexual_preference, spotlight.gender, spotlight.sexual_preference) && !isLoadingPossible && currentCard && spotlight.id !== currentCard.id && !matches.some(m => m.matchedWith.id === spotlight.id) && (
               <div className="w-full mb-4 animate-fade-in">
                 <div className="flex items-center gap-2 mb-2">
                   <i className="fa-solid fa-fire text-orange-400 text-sm"></i>
