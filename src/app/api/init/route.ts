@@ -37,8 +37,9 @@ export async function GET(request: Request) {
       });
     }
 
-    // Paralel: matches + limits + likedByCount
-    const [matchesResult, limitsResult, likedByResult] = await Promise.all([
+    // Paralel: matches + limits + liked-me verileri (ayni filtreleme liked-me ile)
+    const tenHoursAgo = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
+    const [matchesResult, limitsResult, likesToMeRes, dislikesRes, myLikesRes] = await Promise.all([
       supabase
         .from('matches')
         .select(`
@@ -61,11 +62,20 @@ export async function GET(request: Request) {
 
       getLimitsInfo(myApp.id),
 
-      supabase
-        .from('likes')
-        .select('id', { count: 'exact', head: true })
-        .eq('to_application_id', myApp.id),
+      supabase.from('likes').select('from_application_id').eq('to_application_id', myApp.id),
+      supabase.from('dislikes').select('to_application_id').eq('from_application_id', myApp.id).gt('created_at', tenHoursAgo),
+      supabase.from('likes').select('to_application_id').eq('from_application_id', myApp.id),
     ]);
+
+    const fromIds = (likesToMeRes.data ?? []).map((r: { from_application_id: string }) => r.from_application_id);
+    const matchedIds = new Set<string>();
+    (matchesResult.data ?? []).forEach((m: { application_1_id: string; application_2_id: string }) => {
+      matchedIds.add(m.application_1_id === myApp.id ? m.application_2_id : m.application_1_id);
+    });
+    const dislikedIds = new Set((dislikesRes.data ?? []).map((d: { to_application_id: string }) => d.to_application_id));
+    const likedIds = new Set((myLikesRes.data ?? []).map((l: { to_application_id: string }) => l.to_application_id));
+    const filteredFromIds = fromIds.filter((id: string) => !matchedIds.has(id) && !dislikedIds.has(id) && !likedIds.has(id));
+    const likedByCount = filteredFromIds.length;
 
     const transformedMatches = (matchesResult.data ?? []).map(match => {
       const isApp1 = match.application_1_id === myApp.id;
@@ -83,7 +93,7 @@ export async function GET(request: Request) {
       application: myApp,
       matches: transformedMatches,
       limits: limitsResult,
-      likedByCount: likedByResult.count ?? 0,
+      likedByCount,
     });
   } catch (error) {
     console.error('Init error:', error);

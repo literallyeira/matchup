@@ -39,6 +39,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kendine like atamazsın' }, { status: 400 });
     }
 
+    // Profil mevcut mu kontrol et (silinmiş olabilir)
+    const { data: toApp } = await supabase
+      .from('applications')
+      .select('id')
+      .eq('id', toApplicationId)
+      .maybeSingle();
+    if (!toApp) {
+      return NextResponse.json({ error: 'Bu profil artık mevcut değil.' }, { status: 404 });
+    }
+
+    // Zaten beğenilmiş mi? (önce kontrol - hak düşmeden)
+    const { data: existingLike } = await supabase
+      .from('likes')
+      .select('id')
+      .eq('from_application_id', fromId)
+      .eq('to_application_id', toApplicationId)
+      .maybeSingle();
+    if (existingLike) {
+      const limits = await import('@/lib/limits').then(m => m.getLimitsInfo(fromId));
+      const { data: theirLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('from_application_id', toApplicationId)
+        .eq('to_application_id', fromId)
+        .maybeSingle();
+      return NextResponse.json({
+        success: true,
+        isMatch: !!theirLike,
+        remaining: limits.remaining,
+        resetAt: limits.resetAt,
+      });
+    }
+
     const limitResult = await consumeLikeSlot(fromId);
     if (!limitResult.ok) {
       return NextResponse.json(
@@ -47,7 +80,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Like ekle (varsa ignore)
+    // Like ekle
     const { error: likeError } = await supabase
       .from('likes')
       .upsert(
@@ -56,7 +89,8 @@ export async function POST(request: Request) {
       );
 
     if (likeError) {
-      return NextResponse.json({ error: 'Like kaydedilemedi' }, { status: 500 });
+      console.error('Like upsert error:', likeError);
+      return NextResponse.json({ error: 'Like kaydedilemedi, tekrar dene.' }, { status: 500 });
     }
 
     // Karşı taraf beni daha önce like etti mi?
