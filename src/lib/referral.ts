@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { extendOrSetSubscription } from './limits';
 
 const REFERRAL_REWARD_COUNT = 20;
-const PRO_REWARD_DAYS = 365;
+const PRO_REWARD_DAYS = 30;
 
 function generateRefCode(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
