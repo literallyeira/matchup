@@ -1175,7 +1175,6 @@ export default function AdminPage() {
                                             <tr className="border-b border-white/10 text-left">
                                                 <th className="pb-3 pr-4 font-semibold">Kod</th>
                                                 <th className="pb-3 pr-4 font-semibold">Sahip</th>
-                                                <th className="pb-3 pr-4 font-semibold">GTAW ID</th>
                                                 <th className="pb-3 pr-4 font-semibold">Davet Sayısı</th>
                                                 <th className="pb-3 font-semibold">Link</th>
                                             </tr>
@@ -1185,7 +1184,6 @@ export default function AdminPage() {
                                                 <tr key={r.code} className="border-b border-white/5 hover:bg-white/5">
                                                     <td className="py-3 pr-4 font-mono text-emerald-400">{r.code}</td>
                                                     <td className="py-3 pr-4">{r.ownerName || '—'}</td>
-                                                    <td className="py-3 pr-4 text-gray-400">{r.gtawUserId}</td>
                                                     <td className="py-3 pr-4">
                                                         <span className={r.count >= 20 ? 'text-emerald-400 font-bold' : ''}>{r.count}</span>
                                                         {r.count >= 20 && <span className="ml-1 text-xs text-emerald-400">(Pro kazandı)</span>}
