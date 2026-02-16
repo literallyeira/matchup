@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import {
     getOrCreateRefCode,
     getReferrerByCode,
-    hasPriorApplication,
+    hasPriorApplicationForCharacter,
     recordReferralAndMaybeGrantPro,
 } from '@/lib/referral';
 
@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
 
         const gtawUserId = session.user.gtawId;
 
-        // Yeni kullanıcı mı? (önceden hesabı yok)
-        const wasNewUser = !(await hasPriorApplication(gtawUserId));
+        // Application'ı olmayan karakter mi? (bu karakterin hiç profil kaydı yok)
+        const wasNewCharacter = !(await hasPriorApplicationForCharacter(gtawUserId, parseInt(String(characterId))));
 
         const { data: upserted, error: upsertError } = await supabase
             .from('applications')
@@ -88,8 +88,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Referans: yeni kullanıcı + geçerli ref → referral kaydı, 20'de Pro
-        if (wasNewUser && refCode && typeof refCode === 'string' && refCode.trim()) {
+        // Referans: application'ı olmayan karakter + geçerli ref → referral kaydı, 20'de Pro
+        if (wasNewCharacter && refCode && typeof refCode === 'string' && refCode.trim()) {
             const referrerGtawId = await getReferrerByCode(refCode.trim());
             if (referrerGtawId && upserted?.id) {
                 try {

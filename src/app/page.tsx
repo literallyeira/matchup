@@ -1069,7 +1069,7 @@ function HomeContent() {
               </div>
               <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
                 <h3 className="font-bold text-emerald-400 mb-1"><i className="fa-solid fa-gift mr-2" />Ücretsiz Pro</h3>
-                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">20 yeni arkadaşını davet et, 1 ay MatchUp Pro kazan! Sadece daha önce hesabı olmayanlar sayılır.</p>
+                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">20 yeni karakteri davet et, 1 ay MatchUp Pro kazan! Sadece application'ı (profili) olmayan karakterler sayılır.</p>
                 <button onClick={async () => { setShowShop(false); setShowReferralModal(true); try { const r = await fetch('/api/me/referral-code'); const d = await r.json(); if (r.ok) { if (d.inviteLink) setInviteLink(d.inviteLink); setReferralCount(typeof d.referralCount === 'number' ? d.referralCount : 0); } } catch { /* ignore */ } }} className="btn-secondary text-sm py-2 w-full">
                   <i className="fa-solid fa-user-plus mr-2" />Davet Linkimi Al
                 </button>
@@ -1095,7 +1095,7 @@ function HomeContent() {
                 </p>
               </div>
             )}
-            <p className="text-sm text-[var(--matchup-text-muted)] mb-4">20 yeni kullanıcıyı (daha önce hesabı olmayan) bu linkle davet eden 1 ay MatchUp Pro kazanır.</p>
+            <p className="text-sm text-[var(--matchup-text-muted)] mb-4">20 yeni karakteri (application'ı/profili olmayan) bu linkle davet eden 1 ay MatchUp Pro kazanır.</p>
             {inviteLink ? (
               <div className="flex gap-2">
                 <input readOnly value={inviteLink} className="flex-1 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] text-sm truncate" />

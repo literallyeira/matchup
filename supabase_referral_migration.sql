@@ -9,14 +9,14 @@ CREATE TABLE IF NOT EXISTS referral_codes (
 
 CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code);
 
--- Davet eden -> davet edilen (sadece yeni kayıtlar sayılır)
+-- Davet eden -> davet edilen (application'ı olmayan karakter bazında)
 CREATE TABLE IF NOT EXISTS referrals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   referrer_gtaw_user_id INTEGER NOT NULL,
   referred_gtaw_user_id INTEGER NOT NULL,
   referred_application_id UUID NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(referred_gtaw_user_id)
+  UNIQUE(referred_application_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_gtaw_user_id);

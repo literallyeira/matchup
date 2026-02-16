@@ -58,16 +58,17 @@ export async function getReferrerByCode(refCode: string): Promise<number | null>
   return data?.gtaw_user_id ?? null;
 }
 
-/** Kullanıcının önceden application'ı var mı? (yeni kullanıcı kontrolü) */
-export async function hasPriorApplication(gtawUserId: number): Promise<boolean> {
+/** Bu karakterin (gtaw_user_id + character_id) önceden application'ı var mı? (application'ı olmayan karakter = yeni) */
+export async function hasPriorApplicationForCharacter(gtawUserId: number, characterId: number): Promise<boolean> {
   const { count } = await supabase
     .from('applications')
     .select('*', { count: 'exact', head: true })
-    .eq('gtaw_user_id', gtawUserId);
+    .eq('gtaw_user_id', gtawUserId)
+    .eq('character_id', characterId);
   return (count ?? 0) > 0;
 }
 
-/** Referral kaydı ekle (sadece yeni kullanıcı için). Referrer'a 20 davet = Pro ver */
+/** Referral kaydı ekle (application'ı olmayan karakter için). Referrer'a 20 davet = Pro ver */
 export async function recordReferralAndMaybeGrantPro(
   referrerGtawUserId: number,
   referredGtawUserId: number,

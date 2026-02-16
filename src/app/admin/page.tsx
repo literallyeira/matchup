@@ -1099,7 +1099,7 @@ export default function AdminPage() {
                     <div className="space-y-6">
                         <div className="card animate-fade-in">
                             <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-user-plus mr-2 text-emerald-400"></i>Referans Kodları</h2>
-                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Oluşturulan ref kodları, sahipleri ve aldıkları davet sayısı. 20 davet = 1 ay Pro.</p>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Oluşturulan ref kodları, sahipleri ve aldıkları davet sayısı. Application'ı olmayan karakter bazında. 20 davet = 1 ay Pro.</p>
                             {loadingReferralStats ? (
                                 <div className="flex justify-center py-12">
                                     <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
