@@ -86,11 +86,6 @@ export default function RootLayout({
               </div>
               <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 text-gray-600">
                 <p>© 2026 MatchUp</p>
-                <div className="hidden md:block w-1 h-1 bg-gray-800 rounded-full"></div>
-                <p>
-                  <span>powered by </span>
-                  <span className="text-white font-medium glow-text">eira</span>
-                </p>
               </div>
             </div>
           </footer>
