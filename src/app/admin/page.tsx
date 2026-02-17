@@ -432,6 +432,8 @@ export default function AdminPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const ACTIVE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 saat
+
     // Filtered applications
     const filteredApplications = useMemo(() => {
         return applications.filter(app => {
@@ -475,8 +477,6 @@ export default function AdminPage() {
         if (days < 7) return `${days} gün önce`;
         return formatDate(iso);
     };
-
-    const ACTIVE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 saat
 
     const getGenderLabel = (value: string) => {
         const labels: Record<string, string> = {
