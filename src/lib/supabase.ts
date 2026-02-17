@@ -27,6 +27,8 @@ export interface Application {
   character_name?: string
   liked_count?: number
   match_count?: number
+  /** Arkadaş arıyor | Flört arıyor - sadece rozet, eşleşmeyi etkilemez */
+  looking_for?: 'friends' | 'dating' | null
 }
 
 export interface User {

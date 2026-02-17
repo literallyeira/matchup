@@ -138,6 +138,7 @@ function HomeContent() {
     weight: '',
     gender: '',
     sexualPreference: '',
+    lookingFor: '' as '' | 'friends' | 'dating',
     phone: '',
     facebrowser: '',
     description: '',
@@ -460,6 +461,7 @@ function HomeContent() {
       weight: String(userApplication.weight ?? ''),
       gender: userApplication.gender,
       sexualPreference: userApplication.sexual_preference,
+      lookingFor: userApplication.looking_for === 'friends' || userApplication.looking_for === 'dating' ? userApplication.looking_for : '',
       phone: userApplication.phone ?? '',
       facebrowser: userApplication.facebrowser,
       description: userApplication.description,
@@ -527,6 +529,7 @@ function HomeContent() {
           lastName: selectedCharacter.lastname,
           characterId: selectedCharacter.id,
           characterName: `${selectedCharacter.firstname} ${selectedCharacter.lastname}`,
+          lookingFor: formData.lookingFor || undefined,
           ...(refCode && { ref: refCode }),
         }),
       });
@@ -791,6 +794,15 @@ function HomeContent() {
                     <option value="homoseksuel">Homoseksüel</option>
                     <option value="biseksuel">Biseksüel</option>
                   </select>
+                </div>
+                <div>
+                  <label className="form-label">Ne arıyorsun?</label>
+                  <select className="form-input" value={formData.lookingFor} onChange={(e) => setFormData({ ...formData, lookingFor: e.target.value as '' | 'friends' | 'dating' })}>
+                    <option value="">Seçme (gösterme)</option>
+                    <option value="friends">Arkadaş arıyor</option>
+                    <option value="dating">Flört arıyor</option>
+                  </select>
+                  <p className="text-xs text-[var(--matchup-text-muted)] mt-1">Profilinde rozet olarak görünür, eşleşmeyi etkilemez.</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

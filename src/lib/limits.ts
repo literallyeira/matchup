@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const FREE_DAILY_LIMIT = 10;
+const FREE_DAILY_LIMIT = 25;
 const PLUS_DAILY_LIMIT = 20;
 const RESET_HOURS = 24;
 const FREE_UNDO_PER_DAY = 1;
@@ -75,7 +75,7 @@ export async function extendOrSetSubscription(
   );
 }
 
-/** Günlük limit: free 10, plus 20, pro sınırsız */
+/** Günlük limit: free 25, plus 20, pro sınırsız */
 function dailyLimitForTier(tier: Tier): number {
   if (tier === 'pro') return 999999;
   if (tier === 'plus') return PLUS_DAILY_LIMIT;

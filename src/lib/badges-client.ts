@@ -35,6 +35,13 @@ export function getInlineBadges(app: Application): BadgeInfo[] {
     badges.push({ key: 'veteran', label: 'Kıdemli', icon: 'fa-medal', colorClass: BADGE_COLORS.amber });
   }
 
+  const lookingFor = app.looking_for;
+  if (lookingFor === 'friends') {
+    badges.push({ key: 'looking_friends', label: 'Arkadaş arıyor', icon: 'fa-user-group', colorClass: BADGE_COLORS.blue });
+  } else if (lookingFor === 'dating') {
+    badges.push({ key: 'looking_dating', label: 'Flört arıyor', icon: 'fa-heart', colorClass: BADGE_COLORS.pink });
+  }
+
   const likedCount = (app as { liked_count?: number }).liked_count ?? 0;
   const matchCount = (app as { match_count?: number }).match_count ?? 0;
   if (likedCount >= 15 || matchCount >= 10) {

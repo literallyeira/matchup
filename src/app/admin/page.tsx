@@ -905,6 +905,13 @@ export default function AdminPage() {
                                                             <span className="text-[var(--matchup-text-muted)] text-sm">Son aktif</span>
                                                             <p className={`font-semibold ${app.last_active_at && (Date.now() - new Date(app.last_active_at).getTime()) < ACTIVE_THRESHOLD_MS ? 'text-green-400' : ''}`}>{formatLastActive(app.last_active_at)}</p>
                                                         </div>
+                                                        <div>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Ne arıyor</span>
+                                                            <p className="font-semibold">
+                                                                {app.looking_for === 'friends' ? <span className="text-blue-400"><i className="fa-solid fa-user-group mr-1" />Arkadaş arıyor</span> :
+                                                                 app.looking_for === 'dating' ? <span className="text-pink-400"><i className="fa-solid fa-heart mr-1" />Flört arıyor</span> : '—'}
+                                                            </p>
+                                                        </div>
                                                     </div>
 
                                                     <div className="bg-[var(--matchup-bg-input)] rounded-xl p-4">
