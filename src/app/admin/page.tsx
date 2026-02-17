@@ -42,6 +42,8 @@ export default function AdminPage() {
     // Filters
     const [filterGender, setFilterGender] = useState('');
     const [filterPreference, setFilterPreference] = useState('');
+    const [filterName, setFilterName] = useState('');
+    const [filterActiveOnly, setFilterActiveOnly] = useState(false);
 
     // Test mode state
     const [testMode, setTestMode] = useState(false);
@@ -435,9 +437,18 @@ export default function AdminPage() {
         return applications.filter(app => {
             if (filterGender && app.gender !== filterGender) return false;
             if (filterPreference && app.sexual_preference !== filterPreference) return false;
+            if (filterActiveOnly) {
+                if (!app.last_active_at) return false;
+                if (Date.now() - new Date(app.last_active_at).getTime() >= ACTIVE_THRESHOLD_MS) return false;
+            }
+            if (filterName.trim()) {
+                const q = filterName.trim().toLowerCase();
+                const full = `${app.first_name || ''} ${app.last_name || ''} ${app.character_name || ''}`.toLowerCase();
+                if (!full.includes(q)) return false;
+            }
             return true;
         });
-    }, [applications, filterGender, filterPreference]);
+    }, [applications, filterGender, filterPreference, filterActiveOnly, filterName]);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -449,6 +460,23 @@ export default function AdminPage() {
             minute: '2-digit'
         });
     };
+
+    const formatLastActive = (iso: string | null | undefined): string => {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        const now = new Date();
+        const diff = now.getTime() - d.getTime();
+        const mins = Math.floor(diff / (60 * 1000));
+        const hours = Math.floor(diff / (60 * 60 * 1000));
+        const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+        if (mins < 1) return 'Şimdi aktif';
+        if (mins < 60) return `${mins} dk önce`;
+        if (hours < 24) return `${hours} saat önce`;
+        if (days < 7) return `${days} gün önce`;
+        return formatDate(iso);
+    };
+
+    const ACTIVE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 saat
 
     const getGenderLabel = (value: string) => {
         const labels: Record<string, string> = {
@@ -704,7 +732,17 @@ export default function AdminPage() {
                         {/* Filters */}
                         <div className="card mb-8 animate-fade-in" style={{ animationDelay: '0.15s' }}>
                             <h3 className="font-semibold mb-4"><i className="fa-solid fa-filter mr-2"></i>Filtrele</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                                <div>
+                                    <label className="form-label text-sm">İsimle ara</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Ad, soyad veya karakter..."
+                                        value={filterName}
+                                        onChange={(e) => setFilterName(e.target.value)}
+                                    />
+                                </div>
                                 <div>
                                     <label className="form-label text-sm">Cinsiyet</label>
                                     <select
@@ -730,9 +768,20 @@ export default function AdminPage() {
                                         <option value="biseksuel">Biseksüel</option>
                                     </select>
                                 </div>
+                                <div className="flex items-end">
+                                    <label className="flex items-center gap-2 cursor-pointer h-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={filterActiveOnly}
+                                            onChange={(e) => setFilterActiveOnly(e.target.checked)}
+                                            className="w-4 h-4 rounded border-[var(--matchup-border)] bg-[var(--matchup-bg-input)]"
+                                        />
+                                        <span className="text-sm text-green-400"><i className="fa-solid fa-circle-dot mr-1"></i>Şu an aktifler</span>
+                                    </label>
+                                </div>
                                 <div className="col-span-2 flex items-end">
                                     <button
-                                        onClick={() => { setFilterGender(''); setFilterPreference(''); }}
+                                        onClick={() => { setFilterGender(''); setFilterPreference(''); setFilterName(''); setFilterActiveOnly(false); }}
                                         className="btn-secondary w-full"
                                     >
                                         <i className="fa-solid fa-xmark mr-2"></i>Filtreleri Temizle
@@ -796,7 +845,10 @@ export default function AdminPage() {
                                                                 </p>
                                                             )}
                                                             <p className="text-[var(--matchup-text-muted)] text-sm">
-                                                                {formatDate(app.created_at)}
+                                                                Kayıt: {formatDate(app.created_at)}
+                                                            </p>
+                                                            <p className="text-[var(--matchup-text-muted)] text-sm">
+                                                                Son aktif: <span className={app.last_active_at && (Date.now() - new Date(app.last_active_at).getTime()) < ACTIVE_THRESHOLD_MS ? 'text-green-400' : ''}>{formatLastActive(app.last_active_at)}</span>
                                                             </p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -848,6 +900,10 @@ export default function AdminPage() {
                                                         <div>
                                                             <span className="text-[var(--matchup-text-muted)] text-sm">Facebrowser</span>
                                                             <p className="font-semibold">{app.facebrowser || '-'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[var(--matchup-text-muted)] text-sm">Son aktif</span>
+                                                            <p className={`font-semibold ${app.last_active_at && (Date.now() - new Date(app.last_active_at).getTime()) < ACTIVE_THRESHOLD_MS ? 'text-green-400' : ''}`}>{formatLastActive(app.last_active_at)}</p>
                                                         </div>
                                                     </div>
 
