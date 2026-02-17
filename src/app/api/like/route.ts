@@ -35,6 +35,8 @@ export async function POST(request: Request) {
 
     const fromId = myApp.id;
 
+    supabase.from('applications').update({ last_active_at: new Date().toISOString() }).eq('id', fromId).then(() => {});
+
     if (fromId === toApplicationId) {
       return NextResponse.json({ error: 'Kendine like atamazsın' }, { status: 400 });
     }

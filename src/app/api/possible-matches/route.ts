@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getWantedGenders } from '@/lib/compatibility';
+import { getProfileCompleteness } from '@/lib/profile-completeness';
 import type { Application } from '@/lib/supabase';
 
 // GET - Olası eşleşmeler: uyumlu, henüz like/dislike/match olmamış profiller
@@ -35,13 +36,14 @@ export async function GET(request: Request) {
 
     const myApplication = myApp as Application;
 
-    // 4 bağımsız sorguyu paralel çalıştır
+    // 5 bağımsız sorguyu paralel çalıştır (blocked dahil)
     const tenHoursAgo = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
-    const [likesRes, dislikesRes, matchesRes, boostsRes] = await Promise.all([
+    const [likesRes, dislikesRes, matchesRes, boostsRes, blockedRes] = await Promise.all([
       supabase.from('likes').select('to_application_id').eq('from_application_id', myApplication.id),
       supabase.from('dislikes').select('to_application_id').eq('from_application_id', myApplication.id).gt('created_at', tenHoursAgo),
       supabase.from('matches').select('application_1_id, application_2_id').or(`application_1_id.eq.${myApplication.id},application_2_id.eq.${myApplication.id}`),
       supabase.from('boosts').select('application_id').gt('expires_at', new Date().toISOString()),
+      supabase.from('blocked_users').select('blocked_application_id').eq('blocker_application_id', myApplication.id),
     ]);
 
     const likedIds = (likesRes.data ?? []).map((r: { to_application_id: string }) => r.to_application_id);
@@ -52,8 +54,9 @@ export async function GET(request: Request) {
       if (m.application_2_id !== myApplication.id) matchedIds.push(m.application_2_id);
     });
     const boostedIds = new Set((boostsRes.data ?? []).map((r: { application_id: string }) => r.application_id));
+    const blockedIds = (blockedRes.data ?? []).map((r: { blocked_application_id: string }) => r.blocked_application_id);
 
-    const excludeIds = [...new Set([myApplication.id, ...likedIds, ...dislikedIds, ...matchedIds])];
+    const excludeIds = [...new Set([myApplication.id, ...likedIds, ...dislikedIds, ...matchedIds, ...blockedIds])];
 
     // Uyumluluk: benim aradığım cinsiyetler
     const myWanted = getWantedGenders(myApplication.gender, myApplication.sexual_preference);
@@ -94,10 +97,35 @@ export async function GET(request: Request) {
 
     const apps = (candidates ?? []) as Application[];
 
-    // Öne çıkanları ilk 10'da göster, sonra diğerleri
     const boostedFirst = apps.filter((a) => boostedIds.has(a.id));
     const rest = apps.filter((a) => !boostedIds.has(a.id));
-    const possible = [...boostedFirst.slice(0, 10), ...rest].slice(0, limit);
+    rest.sort((a, b) => getProfileCompleteness(b) - getProfileCompleteness(a));
+    const candidateIds = [...boostedFirst.slice(0, 10), ...rest].slice(0, limit).map((a) => a.id);
+
+    const [likesToCount, matchesCount] = await Promise.all([
+      candidateIds.length > 0
+        ? supabase.from('likes').select('to_application_id').in('to_application_id', candidateIds)
+        : { data: [] },
+      candidateIds.length > 0
+        ? supabase.from('matches').select('application_1_id, application_2_id').or(`application_1_id.in.(${candidateIds.join(',')}),application_2_id.in.(${candidateIds.join(',')})`)
+        : { data: [] },
+    ]);
+
+    const likedCountMap: Record<string, number> = {};
+    (likesToCount.data ?? []).forEach((r: { to_application_id: string }) => {
+      likedCountMap[r.to_application_id] = (likedCountMap[r.to_application_id] || 0) + 1;
+    });
+    const matchCountMap: Record<string, number> = {};
+    (matchesCount.data ?? []).forEach((m: { application_1_id: string; application_2_id: string }) => {
+      matchCountMap[m.application_1_id] = (matchCountMap[m.application_1_id] || 0) + 1;
+      matchCountMap[m.application_2_id] = (matchCountMap[m.application_2_id] || 0) + 1;
+    });
+
+    const possible = [...boostedFirst.slice(0, 10), ...rest].slice(0, limit).map((a) => ({
+      ...a,
+      liked_count: likedCountMap[a.id] || 0,
+      match_count: matchCountMap[a.id] || 0,
+    }));
 
     // Profil görüntülenme kaydı (ilk 5 için, arka planda)
     if (possible.length > 0) {

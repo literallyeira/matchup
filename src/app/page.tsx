@@ -9,6 +9,7 @@ import type { Application } from '@/lib/supabase';
 import { PROFILE_PROMPTS } from '@/lib/prompts';
 import { getInlineBadges } from '@/lib/badges-client';
 import { isCompatible } from '@/lib/compatibility';
+import { getProfileCompleteness } from '@/lib/profile-completeness';
 import { PhotoSlider } from '@/components/PhotoSlider';
 import { getStoredRef, clearStoredRef } from '@/components/RefTracker';
 
@@ -60,6 +61,21 @@ function formatTimeLeft(iso: string): string {
   return `${mins} dk`;
 }
 
+function formatLastActive(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const mins = Math.floor(diff / (60 * 1000));
+  const hours = Math.floor(diff / (60 * 60 * 1000));
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+  if (mins < 1) return 'Simdi aktif';
+  if (mins < 60) return `${mins} dk once aktif`;
+  if (hours < 24) return `${hours} saat once aktif`;
+  if (days < 7) return `${days} gun once aktif`;
+  return null;
+}
+
 function getTierLabel(tier: string): string {
   if (tier === 'plus') return 'MatchUp+';
   if (tier === 'pro') return 'MatchUp Pro';
@@ -96,7 +112,9 @@ function HomeContent() {
   const [activeTab, setActiveTab] = useState<'discover' | 'matches'>('discover');
   const [showMatchModal, setShowMatchModal] = useState<Application | null>(null);
   const [actionPending, setActionPending] = useState<string | null>(null);
-  const [limits, setLimits] = useState<{ tier: string; dailyLimit: number; remaining: number; resetAt: string; boostExpiresAt: string | null; subscriptionExpiresAt?: string | null } | null>(null);
+  const [limits, setLimits] = useState<{ tier: string; dailyLimit: number; remaining: number; resetAt: string; boostExpiresAt: string | null; subscriptionExpiresAt?: string | null; undoRemaining?: number; undoResetAt?: string } | null>(null);
+  const [lastDislikedProfile, setLastDislikedProfile] = useState<Application | null>(null);
+  const [profileCompleteness, setProfileCompleteness] = useState<number | null>(null);
   const [showShop, setShowShop] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -106,6 +124,9 @@ function HomeContent() {
   const [isDeletingProfile, setIsDeletingProfile] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [spotlight, setSpotlight] = useState<Application | null>(null);
+  const [showReportModal, setShowReportModal] = useState<Application | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [blockReportPending, setBlockReportPending] = useState<string | null>(null);
 
   const [testMode, setTestMode] = useState(false);
   const [testModeLoggedIn, setTestModeLoggedIn] = useState(false);
@@ -209,6 +230,7 @@ function HomeContent() {
       setShowForm(!data.hasApplication);
       if (data.limits) setLimits(data.limits);
       if (data.likedByCount != null) setLikedByCount(data.likedByCount);
+      if (data.completeness != null) setProfileCompleteness(data.completeness);
     } catch (e) {
       console.error(e);
     } finally {
@@ -306,12 +328,120 @@ function HomeContent() {
       });
       const data = res.ok ? await res.json() : {};
       if (res.ok) {
+        setLastDislikedProfile(profile);
         setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
         setCurrentPhotoIndex(0);
       }
-      // Dislike hak düşürmez, limits güncellemesi yapmıyoruz
       if (!res.ok && res.status === 429) showToast('Günlük hakkınız doldu.', 'error');
       if (!res.ok && res.status !== 429) showToast('Dislike kaydedilemedi, tekrar dene.', 'error');
+    } catch {
+      showToast('Bağlantı hatası', 'error');
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleBlock = async (profile: Application) => {
+    if (!selectedCharacter || testMode) return;
+    if (!confirm(`${profile.first_name} ${profile.last_name} profilini engellemek istediğinize emin misiniz? Bu kişi artık sizin karşınıza çıkmayacak.`)) return;
+    setBlockReportPending(profile.id);
+    try {
+      const res = await fetch('/api/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockedApplicationId: profile.id, characterId: selectedCharacter.id }),
+      });
+      if (res.ok) {
+        setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
+        setCurrentPhotoIndex(0);
+        setLastDislikedProfile((p) => (p?.id === profile.id ? null : p));
+        showToast('Profil engellendi.', 'success');
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Engellenemedi.', 'error');
+      }
+    } catch {
+      showToast('Bağlantı hatası.', 'error');
+    } finally {
+      setBlockReportPending(null);
+    }
+  };
+
+  const handleBlockFromMatches = async (profile: Application) => {
+    if (!selectedCharacter || testMode) return;
+    setBlockReportPending(profile.id);
+    try {
+      const res = await fetch('/api/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockedApplicationId: profile.id, characterId: selectedCharacter.id }),
+      });
+      if (res.ok) {
+        setMatches((prev) => prev.filter((m) => m.matchedWith.id !== profile.id));
+        showToast('Profil engellendi.', 'success');
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Engellenemedi.', 'error');
+      }
+    } catch {
+      showToast('Bağlantı hatası.', 'error');
+    } finally {
+      setBlockReportPending(null);
+    }
+  };
+
+  const handleReport = async (profile: Application, reason?: string) => {
+    if (!selectedCharacter || testMode) return;
+    setBlockReportPending(profile.id);
+    try {
+      const res = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportedApplicationId: profile.id, characterId: selectedCharacter.id, reason: reason || '' }),
+      });
+      if (res.ok) {
+        setPossibleMatches((prev) => prev.filter((p) => p.id !== profile.id));
+        setMatches((prev) => prev.filter((m) => m.matchedWith.id !== profile.id));
+        setCurrentPhotoIndex(0);
+        setShowReportModal(null);
+        setReportReason('');
+        showToast('Rapor alındı. Teşekkürler.', 'success');
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Rapor gönderilemedi.', 'error');
+      }
+    } catch {
+      showToast('Bağlantı hatası.', 'error');
+    } finally {
+      setBlockReportPending(null);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!selectedCharacter || !lastDislikedProfile || testMode) return;
+    setActionPending('undo');
+    try {
+      const res = await fetch('/api/undo-dislike', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characterId: selectedCharacter.id }),
+      });
+      const data = res.ok ? await res.json() : {};
+      if (res.ok && data.profile) {
+        setPossibleMatches((prev) => [data.profile as Application, ...prev]);
+        setLastDislikedProfile(null);
+        setCurrentPhotoIndex(0);
+        if (data.undoRemaining !== undefined && limits) {
+          setLimits((l) => l ? { ...l, undoRemaining: data.undoRemaining, undoResetAt: data.undoResetAt } : null);
+        }
+        showToast('Geri alındı!', 'success');
+      } else if (res.status === 429) {
+        showToast('Günlük geri alma hakkınız doldu.', 'error');
+      } else if (res.status === 404) {
+        setLastDislikedProfile(null);
+      } else {
+        showToast(data.error || 'Geri alınamadı.', 'error');
+      }
     } catch {
       showToast('Bağlantı hatası', 'error');
     } finally {
@@ -583,7 +713,12 @@ function HomeContent() {
             </span>
           </div>
           <div className="card animate-fade-in">
-            <h2 className="text-2xl font-bold mb-6">{hasApplication ? 'Profili Düzenle' : 'Profil Oluştur'}</h2>
+            <h2 className="text-2xl font-bold mb-2">{hasApplication ? 'Profili Düzenle' : 'Profil Oluştur'}</h2>
+            {profileCompleteness != null && profileCompleteness < 100 && (
+              <p className="text-sm text-[var(--matchup-text-muted)] mb-4">
+                Profilin %{profileCompleteness} tamamlandı — daha fazla eşleşme için fotoğraf ve açıklama ekleyin.
+              </p>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               <div>
                 <label className="form-label">Fotoğraf Linki</label>
@@ -904,6 +1039,9 @@ function HomeContent() {
                       </h3>
                       <p className="text-white/80 text-sm mt-0.5">
                         {currentCard.age} · {getGenderLabel(currentCard.gender)}
+                        {formatLastActive(currentCard.last_active_at) && (
+                          <span className="ml-2 text-white/60 text-xs">· {formatLastActive(currentCard.last_active_at)}</span>
+                        )}
                       </p>
                       {currentCard.description && (
                         <p className="text-white/60 text-sm mt-2 line-clamp-3">{currentCard.description}</p>
@@ -926,8 +1064,9 @@ function HomeContent() {
                 {limits?.remaining === 0 && (
                   <p className="text-center text-[var(--matchup-text-muted)] text-sm mt-4">Günlük hakkınız doldu. 24 saat sonra yenilenecek veya Mağaza'dan daha fazla hak alabilirsiniz.</p>
                 )}
-                <div className="flex items-center justify-center gap-8 mt-8">
-                  <button
+                <div className="flex flex-col items-center gap-3 mt-8">
+                  <div className="flex items-center justify-center gap-8">
+                    <button
                       onClick={() => handleDislike(currentCard)}
                       disabled={!!actionPending}
                       className="w-18 h-18 rounded-full border-2 border-red-500/50 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all disabled:opacity-50"
@@ -940,7 +1079,36 @@ function HomeContent() {
                       className="w-18 h-18 rounded-full bg-[var(--matchup-primary)] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all disabled:opacity-50"
                     >
                       <i className="fa-solid fa-heart text-2xl" />
-                  </button>
+                    </button>
+                  </div>
+                  {lastDislikedProfile && (limits?.undoRemaining ?? 1) > 0 && (
+                    <button
+                      onClick={handleUndo}
+                      disabled={!!actionPending}
+                      className="text-sm text-[var(--matchup-text-muted)] hover:text-white transition-colors flex items-center gap-1.5"
+                    >
+                      <i className="fa-solid fa-rotate-left text-xs" /> Geri al
+                      {limits?.undoRemaining != null && limits.undoRemaining < 5 && (
+                        <span className="text-[10px] opacity-70">({limits.undoRemaining} hak)</span>
+                      )}
+                    </button>
+                  )}
+                  <div className="flex items-center gap-4 text-xs text-[var(--matchup-text-muted)]">
+                    <button
+                      onClick={() => handleBlock(currentCard)}
+                      disabled={!!blockReportPending}
+                      className="hover:text-red-400 transition-colors flex items-center gap-1"
+                    >
+                      <i className="fa-solid fa-ban" /> Engelle
+                    </button>
+                    <button
+                      onClick={() => setShowReportModal(currentCard)}
+                      disabled={!!blockReportPending}
+                      className="hover:text-amber-400 transition-colors flex items-center gap-1"
+                    >
+                      <i className="fa-solid fa-flag" /> Raporla
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -1011,13 +1179,29 @@ function HomeContent() {
                       </a>
                     </div>
                     <p className="text-sm text-[var(--matchup-text-muted)] line-clamp-2">{match.matchedWith.description}</p>
-                    <button
-                      onClick={() => rejectMatch(match.id, match.myApplicationId, match.matchedWith.id)}
-                      disabled={rejectingId === match.id}
-                      className="w-full py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm"
-                    >
-                      {rejectingId === match.id ? 'Kaldırılıyor...' : 'Eşleşmeyi Kaldır'}
-                    </button>
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => rejectMatch(match.id, match.myApplicationId, match.matchedWith.id)}
+                        disabled={rejectingId === match.id}
+                        className="flex-1 min-w-[120px] py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm"
+                      >
+                        {rejectingId === match.id ? 'Kaldırılıyor...' : 'Eşleşmeyi Kaldır'}
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`${match.matchedWith.first_name} ${match.matchedWith.last_name} engellensin mi?`)) handleBlockFromMatches(match.matchedWith); }}
+                        disabled={!!blockReportPending}
+                        className="px-3 py-2 rounded-lg border border-white/20 text-[var(--matchup-text-muted)] hover:text-red-400 hover:border-red-500/30 text-xs"
+                      >
+                        <i className="fa-solid fa-ban mr-1" /> Engelle
+                      </button>
+                      <button
+                        onClick={() => setShowReportModal(match.matchedWith)}
+                        disabled={!!blockReportPending}
+                        className="px-3 py-2 rounded-lg border border-white/20 text-[var(--matchup-text-muted)] hover:text-amber-400 text-xs"
+                      >
+                        <i className="fa-solid fa-flag mr-1" /> Raporla
+                      </button>
+                    </div>
                   </div>
                 </div>
                 );
@@ -1034,6 +1218,28 @@ function HomeContent() {
             <h2 className="text-2xl font-bold text-[var(--matchup-primary)] mb-1">Eşleşme!</h2>
             <p className="text-[var(--matchup-text-muted)] mb-4">{showMatchModal.first_name} {showMatchModal.last_name} seni de beğendi.</p>
             <button onClick={() => setShowMatchModal(null)} className="btn-primary">Harika!</button>
+          </div>
+        </div>
+      )}
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in" onClick={() => { setShowReportModal(null); setReportReason(''); }}>
+          <div className="card max-w-sm w-full animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold mb-2">Raporla</h2>
+            <p className="text-[var(--matchup-text-muted)] text-sm mb-3">{showReportModal.first_name} {showReportModal.last_name} profili hakkında şikayette bulunuyorsunuz.</p>
+            <textarea
+              className="form-input text-sm min-h-[80px] mb-4"
+              placeholder="Sebep (isteğe bağlı)"
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              maxLength={500}
+            />
+            <div className="flex gap-2">
+              <button onClick={() => { setShowReportModal(null); setReportReason(''); }} className="btn-secondary flex-1">İptal</button>
+              <button onClick={() => handleReport(showReportModal, reportReason)} disabled={!!blockReportPending} className="btn-primary flex-1">
+                {blockReportPending ? 'Gönderiliyor...' : 'Gönder'}
+              </button>
+            </div>
           </div>
         </div>
       )}

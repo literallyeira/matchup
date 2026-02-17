@@ -32,6 +32,9 @@ export default function BegenilerPage() {
   const [tier, setTier] = useState<string>('free');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [photoIndices, setPhotoIndices] = useState<Record<string, number>>({});
+  const [showReportModal, setShowReportModal] = useState<Application | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [blockReportPending, setBlockReportPending] = useState<string | null>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -123,6 +126,57 @@ export default function BegenilerPage() {
   const handleDismiss = (profileId: string) => {
     setLikedBy((prev) => prev.filter((p) => p.id !== profileId));
     setLikedByCount((c) => Math.max(0, c - 1));
+  };
+
+  const handleBlock = async (profile: Application) => {
+    if (!selectedCharacter) return;
+    if (!confirm(`${profile.first_name} ${profile.last_name} profilini engellemek istediğinize emin misiniz?`)) return;
+    setBlockReportPending(profile.id);
+    try {
+      const res = await fetch('/api/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockedApplicationId: profile.id, characterId: selectedCharacter.id }),
+      });
+      if (res.ok) {
+        setLikedBy((prev) => prev.filter((p) => p.id !== profile.id));
+        setLikedByCount((c) => Math.max(0, c - 1));
+        showToast('Profil engellendi.', 'success');
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Engellenemedi.', 'error');
+      }
+    } catch {
+      showToast('Bağlantı hatası.', 'error');
+    } finally {
+      setBlockReportPending(null);
+    }
+  };
+
+  const handleReport = async (profile: Application, reason?: string) => {
+    if (!selectedCharacter) return;
+    setBlockReportPending(profile.id);
+    try {
+      const res = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportedApplicationId: profile.id, characterId: selectedCharacter.id, reason: reason || '' }),
+      });
+      if (res.ok) {
+        setLikedBy((prev) => prev.filter((p) => p.id !== profile.id));
+        setLikedByCount((c) => Math.max(0, c - 1));
+        setShowReportModal(null);
+        setReportReason('');
+        showToast('Rapor alındı. Teşekkürler.', 'success');
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Rapor gönderilemedi.', 'error');
+      }
+    } catch {
+      showToast('Bağlantı hatası.', 'error');
+    } finally {
+      setBlockReportPending(null);
+    }
   };
 
   if (status === 'loading' || loading) {
@@ -286,25 +340,65 @@ export default function BegenilerPage() {
                   </div>
                 )}
                 {/* Actions */}
-                <div className="p-4 flex gap-2">
-                  <button
-                    onClick={() => handleLike(profile)}
-                    className="btn-primary py-2.5 flex-1 flex items-center justify-center gap-2"
-                  >
-                    <i className="fa-solid fa-heart" /> Beğen & Eşleş
-                  </button>
-                  <button
-                    onClick={() => handleDismiss(profile.id)}
-                    className="w-11 h-11 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all flex-shrink-0"
-                  >
-                    <i className="fa-solid fa-xmark text-lg" />
-                  </button>
+                <div className="p-4 flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleLike(profile)}
+                      className="btn-primary py-2.5 flex-1 flex items-center justify-center gap-2"
+                    >
+                      <i className="fa-solid fa-heart" /> Beğen & Eşleş
+                    </button>
+                    <button
+                      onClick={() => handleDismiss(profile.id)}
+                      className="w-11 h-11 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all flex-shrink-0"
+                    >
+                      <i className="fa-solid fa-xmark text-lg" />
+                    </button>
+                  </div>
+                  <div className="flex gap-2 text-xs text-[var(--matchup-text-muted)]">
+                    <button
+                      onClick={() => handleBlock(profile)}
+                      disabled={!!blockReportPending}
+                      className="flex-1 py-1.5 rounded-lg border border-white/20 hover:text-red-400 hover:border-red-500/30 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <i className="fa-solid fa-ban" /> Engelle
+                    </button>
+                    <button
+                      onClick={() => setShowReportModal(profile)}
+                      disabled={!!blockReportPending}
+                      className="flex-1 py-1.5 rounded-lg border border-white/20 hover:text-amber-400 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <i className="fa-solid fa-flag" /> Raporla
+                    </button>
+                  </div>
                 </div>
               </div>
             ); })}
           </div>
         )}
       </div>
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in" onClick={() => { setShowReportModal(null); setReportReason(''); }}>
+          <div className="card max-w-sm w-full animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold mb-2">Raporla</h2>
+            <p className="text-[var(--matchup-text-muted)] text-sm mb-3">{showReportModal.first_name} {showReportModal.last_name} profili hakkında şikayette bulunuyorsunuz.</p>
+            <textarea
+              className="form-input text-sm min-h-[80px] mb-4"
+              placeholder="Sebep (isteğe bağlı)"
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              maxLength={500}
+            />
+            <div className="flex gap-2">
+              <button onClick={() => { setShowReportModal(null); setReportReason(''); }} className="btn-secondary flex-1">İptal</button>
+              <button onClick={() => handleReport(showReportModal, reportReason)} disabled={!!blockReportPending} className="btn-primary flex-1">
+                {blockReportPending ? 'Gönderiliyor...' : 'Gönder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && <div className={`toast ${toast.type}`}>{toast.message}</div>}
     </main>

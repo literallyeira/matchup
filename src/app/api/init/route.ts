@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getLimitsInfo } from '@/lib/limits';
+import { getProfileCompleteness } from '@/lib/profile-completeness';
 
 // GET - Tek istekte application + matches + limits + likedByCount
 export async function GET(request: Request) {
@@ -37,6 +38,8 @@ export async function GET(request: Request) {
       });
     }
 
+    supabase.from('applications').update({ last_active_at: new Date().toISOString() }).eq('id', myApp.id).then(() => {});
+
     // Paralel: matches + limits + liked-me verileri (ayni filtreleme liked-me ile)
     const tenHoursAgo = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
     const [matchesResult, limitsResult, likesToMeRes, dislikesRes, myLikesRes] = await Promise.all([
@@ -50,12 +53,12 @@ export async function GET(request: Request) {
           application_1:applications!matches_application_1_id_fkey(
             id, first_name, last_name, age, gender, sexual_preference,
             phone, facebrowser, description, photo_url, character_name,
-            extra_photos, prompts, is_verified, created_at
+            extra_photos, prompts, is_verified, created_at, last_active_at
           ),
           application_2:applications!matches_application_2_id_fkey(
             id, first_name, last_name, age, gender, sexual_preference,
             phone, facebrowser, description, photo_url, character_name,
-            extra_photos, prompts, is_verified, created_at
+            extra_photos, prompts, is_verified, created_at, last_active_at
           )
         `)
         .or(`application_1_id.eq.${myApp.id},application_2_id.eq.${myApp.id}`),
@@ -88,12 +91,15 @@ export async function GET(request: Request) {
       };
     });
 
+    const completeness = getProfileCompleteness(myApp);
+
     return NextResponse.json({
       hasApplication: true,
       application: myApp,
       matches: transformedMatches,
       limits: limitsResult,
       likedByCount,
+      completeness,
     });
   } catch (error) {
     console.error('Init error:', error);

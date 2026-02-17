@@ -21,9 +21,12 @@ export interface Application {
   prompts?: Record<string, string>
   is_verified?: boolean
   created_at: string
+  last_active_at?: string | null
   gtaw_user_id?: number
   character_id?: number
   character_name?: string
+  liked_count?: number
+  match_count?: number
 }
 
 export interface User {

@@ -3,6 +3,8 @@ import { supabase } from './supabase';
 const FREE_DAILY_LIMIT = 10;
 const PLUS_DAILY_LIMIT = 20;
 const RESET_HOURS = 24;
+const FREE_UNDO_PER_DAY = 1;
+const PRO_UNDO_PER_DAY = 5;
 
 export type Tier = 'free' | 'plus' | 'pro';
 
@@ -13,6 +15,8 @@ export interface LimitsInfo {
   resetAt: string;
   boostExpiresAt: string | null;
   subscriptionExpiresAt: string | null;
+  undoRemaining?: number;
+  undoResetAt?: string;
 }
 
 /** Aktif abonelik tier'ı (süresi dolmuşsa free) */
@@ -192,6 +196,10 @@ export async function getLimitsInfo(applicationId: string): Promise<LimitsInfo> 
   const remaining = Math.max(0, dailyLimit - used);
   const boostExpiresAt = boostResult.data?.expires_at || null;
 
+  const undoLimit = undoLimitForTier(tier);
+  const { used: undoUsed, resetAt: undoResetAt } = await getOrResetUndoDaily(applicationId);
+  const undoRemaining = Math.max(0, undoLimit - undoUsed);
+
   return {
     tier,
     dailyLimit: tier === 'pro' ? 999999 : dailyLimit,
@@ -199,5 +207,68 @@ export async function getLimitsInfo(applicationId: string): Promise<LimitsInfo> 
     resetAt: resetAt.toISOString(),
     boostExpiresAt,
     subscriptionExpiresAt,
+    undoRemaining,
+    undoResetAt: undoResetAt.toISOString(),
   };
+}
+
+/** Undo gunluk limit: Free 1, Pro 5 */
+function undoLimitForTier(tier: Tier): number {
+  if (tier === 'pro') return PRO_UNDO_PER_DAY;
+  return FREE_UNDO_PER_DAY;
+}
+
+/** Undo kullan: son dislike geri al, sayaci artir */
+export async function consumeUndoSlot(applicationId: string): Promise<{ ok: boolean; remaining?: number; resetAt?: string }> {
+  const tier = await getTier(applicationId);
+  const limit = undoLimitForTier(tier);
+  const { used, resetAt } = await getOrResetUndoDaily(applicationId);
+  if (used >= limit) {
+    return { ok: false, remaining: 0, resetAt: resetAt.toISOString() };
+  }
+  const newUsed = used + 1;
+  await supabase.from('daily_undo').upsert({
+    application_id: applicationId,
+    undos_used_since_reset: newUsed,
+    reset_at: resetAt.toISOString(),
+  }, { onConflict: 'application_id' });
+  return { ok: true, remaining: limit - newUsed, resetAt: resetAt.toISOString() };
+}
+
+async function getOrResetUndoDaily(applicationId: string): Promise<{ used: number; resetAt: Date }> {
+  const now = new Date();
+  const { data } = await supabase
+    .from('daily_undo')
+    .select('undos_used_since_reset, reset_at')
+    .eq('application_id', applicationId)
+    .single();
+
+  if (!data) {
+    const resetAt = new Date(now.getTime() + RESET_HOURS * 60 * 60 * 1000);
+    await supabase.from('daily_undo').upsert({
+      application_id: applicationId,
+      undos_used_since_reset: 0,
+      reset_at: resetAt.toISOString(),
+    }, { onConflict: 'application_id' });
+    return { used: 0, resetAt };
+  }
+
+  const resetAt = new Date(data.reset_at);
+  if (now >= resetAt) {
+    const newResetAt = new Date(now.getTime() + RESET_HOURS * 60 * 60 * 1000);
+    await supabase.from('daily_undo').update({
+      undos_used_since_reset: 0,
+      reset_at: newResetAt.toISOString(),
+    }).eq('application_id', applicationId);
+    return { used: 0, resetAt: newResetAt };
+  }
+  return { used: data.undos_used_since_reset ?? 0, resetAt };
+}
+
+/** Undo kalan hak bilgisi */
+export async function getUndoInfo(applicationId: string): Promise<{ remaining: number; resetAt: string }> {
+  const tier = await getTier(applicationId);
+  const limit = undoLimitForTier(tier);
+  const { used, resetAt } = await getOrResetUndoDaily(applicationId);
+  return { remaining: Math.max(0, limit - used), resetAt: resetAt.toISOString() };
 }

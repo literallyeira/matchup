@@ -32,9 +32,10 @@ export async function GET(request: Request) {
         }
 
         // Find all matches where this application is involved
-        const { data: matches, error: matchError } = await supabase
-            .from('matches')
-            .select(`
+        const [{ data: matches, error: matchError }, { data: blockedRows }] = await Promise.all([
+            supabase
+                .from('matches')
+                .select(`
         id,
         created_at,
         application_1_id,
@@ -50,24 +51,27 @@ export async function GET(request: Request) {
           extra_photos, prompts, is_verified, created_at
         )
       `)
-            .or(`application_1_id.eq.${myApplication.id},application_2_id.eq.${myApplication.id}`);
+                .or(`application_1_id.eq.${myApplication.id},application_2_id.eq.${myApplication.id}`),
+            supabase.from('blocked_users').select('blocked_application_id').eq('blocker_application_id', myApplication.id),
+        ]);
 
         if (matchError) {
             console.error('Match fetch error:', matchError);
             return NextResponse.json({ error: 'Failed to fetch matches' }, { status: 500 });
         }
 
-        // Transform matches to show the OTHER person's info
-        const transformedMatches = matches?.map(match => {
-            const isApp1 = match.application_1_id === myApplication.id;
-            const matchedWith = isApp1 ? match.application_2 : match.application_1;
-            return {
-                id: match.id,
-                created_at: match.created_at,
-                matchedWith,
-                myApplicationId: myApplication.id
-            };
-        }) || [];
+        const blockedIds = new Set((blockedRows ?? []).map((r: { blocked_application_id: string }) => r.blocked_application_id));
+
+        // Transform matches to show the OTHER person's info, exclude blocked
+        const transformedMatches = (matches ?? [])
+            .map((match: { application_1_id: string; application_2_id: string; application_1: object; application_2: object; id: string; created_at: string }) => {
+                const isApp1 = match.application_1_id === myApplication.id;
+                const matchedWith = isApp1 ? match.application_2 : match.application_1;
+                const matchedId = (matchedWith as { id: string }).id;
+                return { id: match.id, created_at: match.created_at, matchedWith, myApplicationId: myApplication.id, matchedId };
+            })
+            .filter((m: { matchedId: string }) => !blockedIds.has(m.matchedId))
+            .map(({ matchedId, ...m }) => m);
 
         return NextResponse.json({
             matches: transformedMatches,

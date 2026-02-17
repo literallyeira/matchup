@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
                 character_name: characterName,
                 extra_photos: Array.isArray(extraPhotos) ? extraPhotos.filter((u: string) => u?.trim()).slice(0, 4) : [],
                 prompts: typeof prompts === 'object' && prompts ? Object.fromEntries(Object.entries(prompts).filter(([, v]) => (v as string)?.trim())) : {},
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                last_active_at: new Date().toISOString()
             }, {
                 onConflict: 'gtaw_user_id,character_id'
             })

@@ -35,5 +35,13 @@ export function getInlineBadges(app: Application): BadgeInfo[] {
     badges.push({ key: 'veteran', label: 'Kıdemli', icon: 'fa-medal', colorClass: BADGE_COLORS.amber });
   }
 
+  const likedCount = (app as { liked_count?: number }).liked_count ?? 0;
+  const matchCount = (app as { match_count?: number }).match_count ?? 0;
+  if (likedCount >= 15 || matchCount >= 10) {
+    badges.push({ key: 'popular', label: 'Çok beğenilen', icon: 'fa-fire', colorClass: 'bg-orange-500/20 text-orange-400' });
+  } else if (likedCount >= 5 || matchCount >= 3) {
+    badges.push({ key: 'popular', label: 'Popüler', icon: 'fa-star', colorClass: BADGE_COLORS.amber });
+  }
+
   return badges;
 }
