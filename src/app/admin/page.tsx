@@ -44,6 +44,7 @@ export default function AdminPage() {
     const [filterPreference, setFilterPreference] = useState('');
     const [filterName, setFilterName] = useState('');
     const [filterActiveOnly, setFilterActiveOnly] = useState(false);
+    const [sortByMatch, setSortByMatch] = useState<'none' | 'desc' | 'asc'>('none');
 
     // Test mode state
     const [testMode, setTestMode] = useState(false);
@@ -434,9 +435,21 @@ export default function AdminPage() {
 
     const ACTIVE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 saat
 
-    // Filtered applications
+    // Match count per application
+    const matchCountMap = useMemo(() => {
+        const map: Record<string, number> = {};
+        matches.forEach(m => {
+            const id1 = m.application_1_id;
+            const id2 = m.application_2_id;
+            map[id1] = (map[id1] || 0) + 1;
+            map[id2] = (map[id2] || 0) + 1;
+        });
+        return map;
+    }, [matches]);
+
+    // Filtered and sorted applications
     const filteredApplications = useMemo(() => {
-        return applications.filter(app => {
+        let list = applications.filter(app => {
             if (filterGender && app.gender !== filterGender) return false;
             if (filterPreference && app.sexual_preference !== filterPreference) return false;
             if (filterActiveOnly) {
@@ -450,7 +463,13 @@ export default function AdminPage() {
             }
             return true;
         });
-    }, [applications, filterGender, filterPreference, filterActiveOnly, filterName]);
+        if (sortByMatch === 'desc') {
+            list = [...list].sort((a, b) => (matchCountMap[b.id] || 0) - (matchCountMap[a.id] || 0));
+        } else if (sortByMatch === 'asc') {
+            list = [...list].sort((a, b) => (matchCountMap[a.id] || 0) - (matchCountMap[b.id] || 0));
+        }
+        return list;
+    }, [applications, filterGender, filterPreference, filterActiveOnly, filterName, sortByMatch, matchCountMap]);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -779,9 +798,21 @@ export default function AdminPage() {
                                         <span className="text-sm text-green-400"><i className="fa-solid fa-circle-dot mr-1"></i>Şu an aktifler</span>
                                     </label>
                                 </div>
+                                <div>
+                                    <label className="form-label text-sm">Eşleşme sayısına göre sırala</label>
+                                    <select
+                                        className="form-input"
+                                        value={sortByMatch}
+                                        onChange={(e) => setSortByMatch(e.target.value as 'none' | 'desc' | 'asc')}
+                                    >
+                                        <option value="none">Sıralama yok</option>
+                                        <option value="desc">Çok → Az</option>
+                                        <option value="asc">Az → Çok</option>
+                                    </select>
+                                </div>
                                 <div className="col-span-2 flex items-end">
                                     <button
-                                        onClick={() => { setFilterGender(''); setFilterPreference(''); setFilterName(''); setFilterActiveOnly(false); }}
+                                        onClick={() => { setFilterGender(''); setFilterPreference(''); setFilterName(''); setFilterActiveOnly(false); setSortByMatch('none'); }}
                                         className="btn-secondary w-full"
                                     >
                                         <i className="fa-solid fa-xmark mr-2"></i>Filtreleri Temizle
