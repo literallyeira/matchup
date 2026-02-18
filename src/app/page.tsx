@@ -873,8 +873,41 @@ function HomeContent() {
   const currentCard = possibleMatches[0];
   const allPhotos = currentCard ? [currentCard.photo_url, ...(currentCard.extra_photos || []).filter(Boolean)] : [];
 
+  const actionButtons = (
+    <>
+      <Link href="/begeniler" className="btn-secondary text-sm whitespace-nowrap text-center justify-center w-full min-w-0">
+        <i className="fa-solid fa-eye mr-1.5" /> Beğenenler{likedByCount != null && likedByCount > 0 ? ` (${likedByCount})` : ''}
+      </Link>
+      <button onClick={() => setShowShop(true)} className="btn-secondary text-sm whitespace-nowrap justify-center w-full min-w-0">
+        <i className="fa-solid fa-store mr-1.5" /> Mağaza
+      </button>
+      <button
+        onClick={async () => {
+          setShowReferralModal(true);
+          try {
+            const res = await fetch('/api/me/referral-code');
+            const data = await res.json();
+            if (res.ok) {
+              if (data.inviteLink) setInviteLink(data.inviteLink);
+              setReferralCount(typeof data.referralCount === 'number' ? data.referralCount : 0);
+            }
+          } catch { /* ignore */ }
+        }}
+        className="btn-secondary text-sm whitespace-nowrap justify-center w-full min-w-0"
+      >
+        <i className="fa-solid fa-user-plus mr-1.5" /> Davet Et
+      </button>
+      <Link href="/istatistikler" className="btn-secondary text-sm whitespace-nowrap text-center justify-center w-full min-w-0">
+        <i className="fa-solid fa-chart-simple mr-1.5" /> İstatistik
+      </Link>
+      <button onClick={startEditing} className="btn-secondary text-sm whitespace-nowrap justify-center w-full min-w-0">
+        <i className="fa-solid fa-user-pen mr-1.5" /> Profil
+      </button>
+    </>
+  );
+
   return (
-    <main className="py-6 px-4 pb-24">
+    <main className="py-6 px-4 pb-24 relative">
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="animate-fade-in mb-6">
@@ -927,36 +960,9 @@ function HomeContent() {
             </div>
           )}
 
-          {/* Row 3: Action Buttons */}
-          <div className="flex items-center gap-2">
-            <Link href="/begeniler" className="btn-secondary text-sm flex-1 whitespace-nowrap text-center">
-              <i className="fa-solid fa-eye mr-1.5" /> Beğenenler{likedByCount != null && likedByCount > 0 ? ` (${likedByCount})` : ''}
-            </Link>
-            <button onClick={() => setShowShop(true)} className="btn-secondary text-sm flex-1 whitespace-nowrap">
-              <i className="fa-solid fa-store mr-1.5" /> Mağaza
-            </button>
-            <button
-              onClick={async () => {
-                setShowReferralModal(true);
-                try {
-                  const res = await fetch('/api/me/referral-code');
-                  const data = await res.json();
-                  if (res.ok) {
-                    if (data.inviteLink) setInviteLink(data.inviteLink);
-                    setReferralCount(typeof data.referralCount === 'number' ? data.referralCount : 0);
-                  }
-                } catch { /* ignore */ }
-              }}
-              className="btn-secondary text-sm flex-1 whitespace-nowrap"
-            >
-              <i className="fa-solid fa-user-plus mr-1.5" /> Davet Et
-            </button>
-            <Link href="/istatistikler" className="btn-secondary text-sm flex-1 whitespace-nowrap text-center">
-              <i className="fa-solid fa-chart-simple mr-1.5" /> İstatistik
-            </Link>
-            <button onClick={startEditing} className="btn-secondary text-sm flex-1 whitespace-nowrap">
-              <i className="fa-solid fa-user-pen mr-1.5" /> Profil
-            </button>
+          {/* Row 3: Action Buttons - mobilde grid, desktop'ta sağ sidebar'da */}
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:hidden">
+            {actionButtons}
           </div>
         </div>
 
@@ -973,6 +979,43 @@ function HomeContent() {
             className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'matches' ? 'bg-[var(--matchup-primary)] text-white' : 'text-[var(--matchup-text-muted)]'}`}
           >
             <i className="fa-solid fa-heart mr-2" /> Eşleşmeler {matches.length > 0 && <span className="ml-1">({matches.length})</span>}
+          </button>
+        </div>
+
+        {/* Sağ sidebar - desktop (md+), action butonları dikey */}
+        <div className="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-40 flex-col gap-2 py-4 px-2 rounded-l-xl bg-[var(--matchup-bg-card)] border border-r-0 border-[var(--matchup-border)] shadow-lg">
+          <Link href="/begeniler" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--matchup-text-muted)] hover:text-white hover:bg-white/5 transition-all whitespace-nowrap">
+            <i className="fa-solid fa-eye w-5 text-center" />
+            <span>Beğenenler{likedByCount != null && likedByCount > 0 ? ` (${likedByCount})` : ''}</span>
+          </Link>
+          <button onClick={() => setShowShop(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--matchup-text-muted)] hover:text-white hover:bg-white/5 transition-all whitespace-nowrap text-left w-full">
+            <i className="fa-solid fa-store w-5 text-center" />
+            <span>Mağaza</span>
+          </button>
+          <button
+            onClick={async () => {
+              setShowReferralModal(true);
+              try {
+                const res = await fetch('/api/me/referral-code');
+                const data = await res.json();
+                if (res.ok) {
+                  if (data.inviteLink) setInviteLink(data.inviteLink);
+                  setReferralCount(typeof data.referralCount === 'number' ? data.referralCount : 0);
+                }
+              } catch { /* ignore */ }
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--matchup-text-muted)] hover:text-white hover:bg-white/5 transition-all whitespace-nowrap text-left w-full"
+          >
+            <i className="fa-solid fa-user-plus w-5 text-center" />
+            <span>Davet Et</span>
+          </button>
+          <Link href="/istatistikler" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--matchup-text-muted)] hover:text-white hover:bg-white/5 transition-all whitespace-nowrap">
+            <i className="fa-solid fa-chart-simple w-5 text-center" />
+            <span>İstatistik</span>
+          </Link>
+          <button onClick={startEditing} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--matchup-text-muted)] hover:text-white hover:bg-white/5 transition-all whitespace-nowrap text-left w-full">
+            <i className="fa-solid fa-user-pen w-5 text-center" />
+            <span>Profil</span>
           </button>
         </div>
 
