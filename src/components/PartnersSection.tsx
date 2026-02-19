@@ -35,13 +35,13 @@ export default function PartnersSection() {
               href={p.link_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="opacity-35 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center"
+              className="group opacity-35 hover:opacity-100 transition-all duration-200 flex items-center justify-center"
               title={p.name}
             >
               <img
                 src={p.logo_url}
                 alt={p.name}
-                className="h-16 w-auto max-w-[240px] object-contain object-center"
+                className="h-16 w-auto max-w-[240px] object-contain object-center grayscale group-hover:grayscale-0 transition-all duration-200"
               />
             </a>
           ))}
