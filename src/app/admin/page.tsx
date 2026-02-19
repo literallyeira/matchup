@@ -20,7 +20,7 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'referrals'>('applications');
+    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'referrals' | 'bug-reports' | 'job-applications'>('applications');
     const [subModal, setSubModal] = useState<{ appId: string; name: string; currentTier: string } | null>(null);
     const [subTier, setSubTier] = useState('free');
     const [subDays, setSubDays] = useState(7);
@@ -38,6 +38,10 @@ export default function AdminPage() {
     const [loadingLinkStats, setLoadingLinkStats] = useState(false);
     const [referralStats, setReferralStats] = useState<Array<{ code: string; gtawUserId: number; ownerName: string; count: number }>>([]);
     const [loadingReferralStats, setLoadingReferralStats] = useState(false);
+    const [bugReports, setBugReports] = useState<Array<{ id: string; email_ic: string; discord_ooc: string | null; bug_description: string; created_at: string; status: string }>>([]);
+    const [loadingBugReports, setLoadingBugReports] = useState(false);
+    const [jobApplications, setJobApplications] = useState<Array<{ id: string; character_name: string; phone_number: string; address: string; background: string; education: string; created_at: string; status: string }>>([]);
+    const [loadingJobApplications, setLoadingJobApplications] = useState(false);
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -332,6 +336,66 @@ export default function AdminPage() {
         finally { setLoadingReferralStats(false); }
     };
 
+    const fetchBugReports = async () => {
+        setLoadingBugReports(true);
+        try {
+            const res = await fetch('/api/admin/bug-reports', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setBugReports(Array.isArray(data) ? data : []);
+            } else setBugReports([]);
+        } catch { setBugReports([]); }
+        finally { setLoadingBugReports(false); }
+    };
+
+    const fetchJobApplications = async () => {
+        setLoadingJobApplications(true);
+        try {
+            const res = await fetch('/api/admin/job-applications', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setJobApplications(Array.isArray(data) ? data : []);
+            } else setJobApplications([]);
+        } catch { setJobApplications([]); }
+        finally { setLoadingJobApplications(false); }
+    };
+
+    const updateBugReportStatus = async (id: string, status: string) => {
+        try {
+            const res = await fetch('/api/admin/bug-reports', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}`,
+                },
+                body: JSON.stringify({ id, status }),
+            });
+            if (res.ok) {
+                setBugReports(bugReports.map(r => r.id === id ? { ...r, status } : r));
+            }
+        } catch { /* ignore */ }
+    };
+
+    const updateJobApplicationStatus = async (id: string, status: string) => {
+        try {
+            const res = await fetch('/api/admin/job-applications', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}`,
+                },
+                body: JSON.stringify({ id, status }),
+            });
+            if (res.ok) {
+                setJobApplications(jobApplications.map(j => j.id === id ? { ...j, status } : j));
+            }
+        } catch { /* ignore */ }
+    };
+
     const handleDeactivateAd = async (adId: string) => {
         if (!confirm('Bu reklamı deaktif etmek istediğinize emin misiniz?')) return;
         try {
@@ -396,6 +460,16 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (activeTab === 'referrals' && isAuthenticated) fetchReferralStats();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
+    useEffect(() => {
+        if (activeTab === 'bug-reports' && isAuthenticated) fetchBugReports();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
+    useEffect(() => {
+        if (activeTab === 'job-applications' && isAuthenticated) fetchJobApplications();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
 
@@ -726,6 +800,24 @@ export default function AdminPage() {
                             }`}
                     >
                         <i className="fa-solid fa-user-plus mr-2"></i>Referanslar ({referralStats.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('bug-reports')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'bug-reports'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-bug mr-2"></i>Bug Bildirimleri ({bugReports.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('job-applications')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'job-applications'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-briefcase mr-2"></i>İşe Alım ({jobApplications.length})
                     </button>
                 </div>
 
@@ -1291,6 +1383,148 @@ export default function AdminPage() {
                                             ))}
                                         </tbody>
                                     </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'bug-reports' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-bug mr-2 text-red-400"></i>Bug Bildirimleri</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Kullanıcılardan gelen bug bildirimleri.</p>
+                            {loadingBugReports ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : bugReports.length === 0 ? (
+                                <p className="text-[var(--matchup-text-muted)] py-8 text-center">Henüz bug bildirimi yok.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {bugReports.map((report) => (
+                                        <div key={report.id} className="p-4 rounded-xl border border-white/10 bg-white/5">
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                            report.status === 'fixed' ? 'bg-green-500/20 text-green-400' :
+                                                            report.status === 'reviewed' ? 'bg-blue-500/20 text-blue-400' :
+                                                            report.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                                                            'bg-yellow-500/20 text-yellow-400'
+                                                        }`}>
+                                                            {report.status === 'pending' ? 'Beklemede' :
+                                                             report.status === 'reviewed' ? 'İncelendi' :
+                                                             report.status === 'fixed' ? 'Düzeltildi' :
+                                                             'Reddedildi'}
+                                                        </span>
+                                                        <span className="text-xs text-[var(--matchup-text-muted)]">
+                                                            {formatDate(report.created_at)}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm font-semibold mb-1">
+                                                        <i className="fa-solid fa-envelope mr-1 text-[var(--matchup-primary)]"></i>
+                                                        {report.email_ic}
+                                                    </p>
+                                                    {report.discord_ooc && (
+                                                        <p className="text-sm text-[var(--matchup-text-muted)] mb-2">
+                                                            <i className="fa-brands fa-discord mr-1"></i>
+                                                            {report.discord_ooc}
+                                                        </p>
+                                                    )}
+                                                    <div className="bg-[var(--matchup-bg-input)] rounded-lg p-3 mt-2">
+                                                        <p className="text-sm whitespace-pre-wrap">{report.bug_description}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-2 ml-4">
+                                                    <select
+                                                        value={report.status}
+                                                        onChange={(e) => updateBugReportStatus(report.id, e.target.value)}
+                                                        className="px-3 py-1.5 rounded-lg bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] text-sm"
+                                                    >
+                                                        <option value="pending">Beklemede</option>
+                                                        <option value="reviewed">İncelendi</option>
+                                                        <option value="fixed">Düzeltildi</option>
+                                                        <option value="rejected">Reddedildi</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'job-applications' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-briefcase mr-2 text-emerald-400"></i>İşe Alım Başvuruları</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">MatchUp ekibine katılmak isteyenlerin başvuruları.</p>
+                            {loadingJobApplications ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : jobApplications.length === 0 ? (
+                                <p className="text-[var(--matchup-text-muted)] py-8 text-center">Henüz işe alım başvurusu yok.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {jobApplications.map((app) => (
+                                        <div key={app.id} className="p-4 rounded-xl border border-white/10 bg-white/5">
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                            app.status === 'accepted' ? 'bg-green-500/20 text-green-400' :
+                                                            app.status === 'reviewed' ? 'bg-blue-500/20 text-blue-400' :
+                                                            app.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                                                            'bg-yellow-500/20 text-yellow-400'
+                                                        }`}>
+                                                            {app.status === 'pending' ? 'Beklemede' :
+                                                             app.status === 'reviewed' ? 'İncelendi' :
+                                                             app.status === 'accepted' ? 'Kabul Edildi' :
+                                                             'Reddedildi'}
+                                                        </span>
+                                                        <span className="text-xs text-[var(--matchup-text-muted)]">
+                                                            {formatDate(app.created_at)}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="text-lg font-bold mb-2">{app.character_name}</h3>
+                                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                                        <div>
+                                                            <span className="text-xs text-[var(--matchup-text-muted)]">Telefon</span>
+                                                            <p className="text-sm font-semibold">{app.phone_number}</p>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-xs text-[var(--matchup-text-muted)]">Adres</span>
+                                                            <p className="text-sm">{app.address}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-[var(--matchup-bg-input)] rounded-lg p-3 mb-2">
+                                                        <span className="text-xs text-[var(--matchup-text-muted)] block mb-1">Geçmiş</span>
+                                                        <p className="text-sm whitespace-pre-wrap">{app.background}</p>
+                                                    </div>
+                                                    <div className="bg-[var(--matchup-bg-input)] rounded-lg p-3">
+                                                        <span className="text-xs text-[var(--matchup-text-muted)] block mb-1">Eğitim Durumu</span>
+                                                        <p className="text-sm whitespace-pre-wrap">{app.education}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-2 ml-4">
+                                                    <select
+                                                        value={app.status}
+                                                        onChange={(e) => updateJobApplicationStatus(app.id, e.target.value)}
+                                                        className="px-3 py-1.5 rounded-lg bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] text-sm"
+                                                    >
+                                                        <option value="pending">Beklemede</option>
+                                                        <option value="reviewed">İncelendi</option>
+                                                        <option value="accepted">Kabul Edildi</option>
+                                                        <option value="rejected">Reddedildi</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
