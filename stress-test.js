@@ -2,9 +2,11 @@
  * MatchUp Stress Test
  *
  * Kullanım:
+ *   npm run stress-test              -> matchup.icu canlı
+ *   npm run stress-test -- localhost -> localhost:3000
  *   node stress-test.js [base_url]
  *
- * Varsayılan: http://localhost:3000
+ * Varsayılan: https://matchup.icu
  *
  * Not: Auth gerektiren endpoint'ler 401 dönecek ama
  * sunucu performansı (response time, throughput) ölçülebilir.
@@ -12,7 +14,7 @@
 
 const autocannon = require('autocannon');
 
-const BASE = process.argv[2] || 'http://localhost:3000';
+const BASE = process.argv[2] || 'https://matchup.icu';
 
 const endpoints = [
   { title: 'Homepage (SSR)', url: '/', duration: 10, connections: 20 },

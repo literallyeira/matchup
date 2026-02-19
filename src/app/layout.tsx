@@ -65,10 +65,18 @@ export default function RootLayout({
                       loading="lazy"
                     />
                   </a>
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-6 flex-wrap justify-center">
                     <Link href="/siparislerim" className="flex items-center gap-2 text-gray-500 hover:text-[var(--matchup-primary)] transition-colors">
                       <i className="fa-solid fa-receipt text-lg"></i>
                       <span>Siparişlerim</span>
+                    </Link>
+                    <Link href="/bug-bildir" className="flex items-center gap-2 text-gray-500 hover:text-[var(--matchup-primary)] transition-colors">
+                      <i className="fa-solid fa-bug text-lg"></i>
+                      <span>Bug Bildir</span>
+                    </Link>
+                    <Link href="/ise-alim" className="flex items-center gap-2 text-gray-500 hover:text-[var(--matchup-primary)] transition-colors">
+                      <i className="fa-solid fa-briefcase text-lg"></i>
+                      <span>İşe Alım</span>
                     </Link>
                     <a href="https://discord.gg/gtaworldtr" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-500 hover:text-[#5865F2] transition-colors">
                       <i className="fa-brands fa-discord text-lg"></i>
