@@ -5,6 +5,7 @@ import Script from "next/script";
 import "./globals.css";
 import { Providers } from "./providers";
 import AdBanners from "@/components/AdBanners";
+import PartnersSection from "@/components/PartnersSection";
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
@@ -50,6 +51,8 @@ export default function RootLayout({
           <div className="flex-1 w-full">
             {children}
           </div>
+
+          <PartnersSection />
 
           {/* Global Footer */}
           <footer className="w-full py-8 px-6 border-t border-white/5 bg-[#0c0c0c]/80">

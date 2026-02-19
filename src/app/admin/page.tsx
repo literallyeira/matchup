@@ -20,7 +20,7 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'referrals' | 'bug-reports' | 'job-applications'>('applications');
+    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'referrals' | 'bug-reports' | 'job-applications' | 'partners'>('applications');
     const [subModal, setSubModal] = useState<{ appId: string; name: string; currentTier: string } | null>(null);
     const [subTier, setSubTier] = useState('free');
     const [subDays, setSubDays] = useState(7);
@@ -42,6 +42,10 @@ export default function AdminPage() {
     const [loadingBugReports, setLoadingBugReports] = useState(false);
     const [jobApplications, setJobApplications] = useState<Array<{ id: string; character_name: string; phone_number: string; address: string; background: string; education: string; created_at: string; status: string }>>([]);
     const [loadingJobApplications, setLoadingJobApplications] = useState(false);
+    const [partnersList, setPartnersList] = useState<Array<{ id: string; name: string; logo_url: string; link_url: string; sort_order: number }>>([]);
+    const [loadingPartners, setLoadingPartners] = useState(false);
+    const [partnerForm, setPartnerForm] = useState({ name: '', logo_url: '', link_url: '', sort_order: 0 });
+    const [partnerSubmitting, setPartnerSubmitting] = useState(false);
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -396,6 +400,52 @@ export default function AdminPage() {
         } catch { /* ignore */ }
     };
 
+    const fetchPartners = async () => {
+        setLoadingPartners(true);
+        try {
+            const res = await fetch('/api/admin/partners', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPartnersList(Array.isArray(data) ? data : []);
+            } else setPartnersList([]);
+        } catch { setPartnersList([]); }
+        finally { setLoadingPartners(false); }
+    };
+
+    const addPartner = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!partnerForm.name.trim() || !partnerForm.logo_url.trim() || !partnerForm.link_url.trim()) return;
+        setPartnerSubmitting(true);
+        try {
+            const res = await fetch('/api/admin/partners', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}`,
+                },
+                body: JSON.stringify(partnerForm),
+            });
+            if (res.ok) {
+                setPartnerForm({ name: '', logo_url: '', link_url: '', sort_order: partnersList.length });
+                fetchPartners();
+            }
+        } catch { /* ignore */ }
+        finally { setPartnerSubmitting(false); }
+    };
+
+    const deletePartner = async (id: string) => {
+        if (!confirm('Bu partneri kaldırmak istediğinize emin misiniz?')) return;
+        try {
+            const res = await fetch(`/api/admin/partners?id=${id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) setPartnersList(partnersList.filter(p => p.id !== id));
+        } catch { /* ignore */ }
+    };
+
     const handleDeactivateAd = async (adId: string) => {
         if (!confirm('Bu reklamı deaktif etmek istediğinize emin misiniz?')) return;
         try {
@@ -470,6 +520,11 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (activeTab === 'job-applications' && isAuthenticated) fetchJobApplications();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
+    useEffect(() => {
+        if (activeTab === 'partners' && isAuthenticated) fetchPartners();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
 
@@ -818,6 +873,15 @@ export default function AdminPage() {
                             }`}
                     >
                         <i className="fa-solid fa-briefcase mr-2"></i>İşe Alım ({jobApplications.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('partners')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'partners'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-handshake mr-2"></i>Partnerler ({partnersList.length})
                     </button>
                 </div>
 
@@ -1523,6 +1587,90 @@ export default function AdminPage() {
                                                     </select>
                                                 </div>
                                             </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'partners' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-handshake mr-2 text-[var(--matchup-primary)]"></i>Partnerler</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Ana sayfada footer üstünde yarı saydam, linkli şirket logoları olarak gösterilir.</p>
+
+                            <form onSubmit={addPartner} className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] mb-6">
+                                <h3 className="font-semibold mb-3">Yeni partner ekle</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="form-label text-sm">İsim</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Şirket adı"
+                                            value={partnerForm.name}
+                                            onChange={(e) => setPartnerForm({ ...partnerForm, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-sm">Logo URL</label>
+                                        <input
+                                            type="url"
+                                            className="form-input"
+                                            placeholder="https://..."
+                                            value={partnerForm.logo_url}
+                                            onChange={(e) => setPartnerForm({ ...partnerForm, logo_url: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-sm">Link URL</label>
+                                        <input
+                                            type="url"
+                                            className="form-input"
+                                            placeholder="https://..."
+                                            value={partnerForm.link_url}
+                                            onChange={(e) => setPartnerForm({ ...partnerForm, link_url: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="form-label text-sm">Sıra</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            min={0}
+                                            value={partnerForm.sort_order}
+                                            onChange={(e) => setPartnerForm({ ...partnerForm, sort_order: Number(e.target.value) })}
+                                        />
+                                    </div>
+                                </div>
+                                <button type="submit" disabled={partnerSubmitting} className="btn-primary mt-4">
+                                    {partnerSubmitting ? 'Ekleniyor...' : 'Partner Ekle'}
+                                </button>
+                            </form>
+
+                            {loadingPartners ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : partnersList.length === 0 ? (
+                                <p className="text-[var(--matchup-text-muted)] py-8 text-center">Henüz partner yok. Yukarıdaki formdan ekleyin.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {partnersList.map((p) => (
+                                        <div key={p.id} className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
+                                            <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center bg-black/30 rounded overflow-hidden">
+                                                <img src={p.logo_url} alt={p.name} className="max-h-8 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold truncate">{p.name}</p>
+                                                <a href={p.link_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--matchup-primary)] truncate block">{p.link_url}</a>
+                                            </div>
+                                            <span className="text-xs text-[var(--matchup-text-muted)]">Sıra: {p.sort_order}</span>
+                                            <button type="button" onClick={() => deletePartner(p.id)} className="btn-danger text-sm">
+                                                <i className="fa-solid fa-trash mr-1"></i>Sil
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
