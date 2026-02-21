@@ -19,10 +19,17 @@ interface Log {
     created_at: string;
 }
 
+interface LoginCount {
+    admin_name: string;
+    login_count: number;
+    last_login_at: string;
+}
+
 export default function SuperEiraPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [logs, setLogs] = useState<Log[]>([]);
+    const [loginCounts, setLoginCounts] = useState<LoginCount[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -40,7 +47,8 @@ export default function SuperEiraPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                setLogs(data);
+                setLogs(data.logs ?? []);
+                setLoginCounts(data.loginCounts ?? []);
                 setIsAuthenticated(true);
                 localStorage.setItem('adminPassword', password);
             } else {
@@ -64,7 +72,8 @@ export default function SuperEiraPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                setLogs(data);
+                setLogs(data.logs ?? []);
+                setLoginCounts(data.loginCounts ?? []);
             }
         } catch {
             console.error('Fetch error');
@@ -187,12 +196,26 @@ export default function SuperEiraPage() {
                 </div>
 
                 <div className="space-y-4">
-                    {logs.length === 0 ? (
+                    {loginCounts.length > 0 && (
+                        <div className="card p-5">
+                            <h2 className="font-bold text-white mb-4">Admin Girişleri</h2>
+                            <div className="flex flex-wrap gap-3">
+                                {loginCounts.map((lc) => (
+                                    <span key={lc.admin_name} className="px-4 py-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                        {lc.admin_name} — {lc.login_count} giriş
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {logs.length === 0 && loginCounts.length === 0 ? (
                         <div className="card text-center py-12">
                             <p className="text-[var(--matchup-text-muted)]">Henüz hiç log kaydı yok.</p>
                         </div>
-                    ) : (
-                        logs.map((log) => (
+                    ) : logs.length === 0 ? null : (
+                        <>
+                        <h2 className="font-bold text-white">İşlem Logları</h2>
+                        {logs.map((log) => (
                             <div key={log.id} className="card p-5 animate-fade-in">
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div>
@@ -214,7 +237,8 @@ export default function SuperEiraPage() {
                                     </div>
                                 </div>
                             </div>
-                        ))
+                        ))}
+                        </>
                     )}
                 </div>
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Application, Match } from '@/lib/supabase';
@@ -105,16 +105,20 @@ export default function AdminPage() {
     };
 
     const getAdminName = () => {
-        return (session?.user as any)?.username || (session?.user as any)?.name || localStorage.getItem('adminUcpName') || 'admin';
+        return (session?.user as any)?.username || (session?.user as any)?.name || '';
     };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        const ucpName = getAdminName();
+        if (!ucpName) {
+            setError('Admin panele girmek için önce UCP ile giriş yapın.');
+            return;
+        }
         setIsLoading(true);
         setError('');
 
         try {
-            const ucpName = (session?.user as any)?.username || (session?.user as any)?.name || 'bilinmiyor';
             const response = await fetch('/api/applications', {
                 headers: {
                     'Authorization': password,
@@ -128,10 +132,17 @@ export default function AdminPage() {
                 setIsAuthenticated(true);
                 localStorage.setItem('adminPassword', password);
                 localStorage.setItem('adminUcpName', ucpName);
+                try {
+                    await fetch('/api/admin/log-login', {
+                        method: 'POST',
+                        headers: { Authorization: password, 'X-Admin-Name': ucpName }
+                    });
+                } catch { /* ignore */ }
                 fetchMatches(password);
                 fetchAdsEnabled();
             } else {
-                setError('Yanlış şifre!');
+                const errData = await response.json().catch(() => ({}));
+                setError(errData.error || 'Yanlış şifre!');
             }
         } catch {
             setError('Bağlantı hatası!');
@@ -590,7 +601,8 @@ export default function AdminPage() {
 
     useEffect(() => {
         const savedPassword = localStorage.getItem('adminPassword');
-        if (savedPassword) {
+        const ucp = (session?.user as any)?.username || (session?.user as any)?.name;
+        if (savedPassword && ucp) {
             setPassword(savedPassword);
             setIsAuthenticated(true);
             fetchApplications(savedPassword);
@@ -598,9 +610,11 @@ export default function AdminPage() {
             fetchAllMatchesForApps(savedPassword);
             fetchAdsEnabled();
             fetchLinkStats();
+        } else if (savedPassword) {
+            setPassword(savedPassword);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [session?.user]);
 
     const ACTIVE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 saat
 
@@ -686,6 +700,7 @@ export default function AdminPage() {
 
     // Login Screen
     if (!isAuthenticated) {
+        const hasUcp = !!(session?.user && ((session.user as any).username || (session.user as any).name));
         return (
             <main className="flex items-center justify-center px-4 py-20">
                 <div className="card max-w-md w-full animate-fade-in">
@@ -699,44 +714,44 @@ export default function AdminPage() {
                             priority
                         />
                         <h1 className="text-2xl font-bold">Admin Paneli</h1>
-                        {session?.user ? (
-                            <p className="text-[var(--matchup-text-muted)] mt-2">Merhaba, <span className="text-white font-medium">{(session.user as any).username || session.user.name}</span></p>
+                        {hasUcp ? (
+                            <p className="text-[var(--matchup-text-muted)] mt-2">Merhaba, <span className="text-white font-medium">{(session!.user as any).username || (session!.user as any).name}</span></p>
                         ) : (
-                            <p className="text-orange-400 mt-2">Lütfen önce UCP ile giriş yapın.</p>
+                            <p className="text-orange-400 mt-2">Admin panele girmek için önce UCP ile giriş yapın.</p>
                         )}
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-6">
-                        <div>
-                            <label className="form-label">Şifre</label>
-                            <input
-                                type="password"
-                                className="form-input"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                            />
-                        </div>
-
-                        {error && (
-                            <p className="text-red-500 text-sm text-center">{error}</p>
-                        )}
-
-                        <button
-                            type="submit"
-                            className="btn-primary"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
-                        </button>
-                    </form>
-
-                    <div className="mt-6 text-center">
-                        <a href="/" className="text-[var(--matchup-text-muted)] hover:text-[var(--matchup-primary)] text-sm">
-                            ← Ana Sayfaya Dön
-                        </a>
-                    </div>
+                    {!hasUcp ? (
+                        <>
+                            <button onClick={() => signIn('gtaw')} className="btn-primary w-full">
+                                <i className="fa-solid fa-right-to-bracket mr-2" /> UCP ile Giriş Yap
+                            </button>
+                            <div className="mt-6 text-center">
+                                <a href="/" className="text-[var(--matchup-text-muted)] hover:text-[var(--matchup-primary)] text-sm">← Ana Sayfaya Dön</a>
+                            </div>
+                        </>
+                    ) : (
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            <div>
+                                <label className="form-label">Şifre</label>
+                                <input
+                                    type="password"
+                                    className="form-input"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                            <button type="submit" className="btn-primary w-full" disabled={isLoading}>
+                                {isLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+                            </button>
+                            <div className="mt-6 text-center">
+                                <a href="/" className="text-[var(--matchup-text-muted)] hover:text-[var(--matchup-primary)] text-sm">← Ana Sayfaya Dön</a>
+                            </div>
+                        </form>
+                    )}
                 </div>
             </main>
         );

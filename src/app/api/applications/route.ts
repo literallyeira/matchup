@@ -4,26 +4,20 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
     try {
         const password = request.headers.get('Authorization');
-        const adminName = request.headers.get('X-Admin-Name') || 'bilinmiyor';
+        const adminName = request.headers.get('X-Admin-Name')?.trim();
 
+        if (!adminName) {
+            return NextResponse.json(
+                { error: 'UCP ile giriş yapmanız gerekiyor!' },
+                { status: 401 }
+            );
+        }
         if (password !== process.env.ADMIN_PASSWORD) {
-            console.warn(`[ADMIN] Başarısız giriş denemesi: ${adminName}`);
             return NextResponse.json(
                 { error: 'Yetkisiz erişim!' },
                 { status: 401 }
             );
         }
-
-        console.log(`[ADMIN] ${adminName} admin paneline erişti (profiller)`);
-
-        // Admin giriş logunu kaydet
-        try {
-            await supabase.from('logs').insert({
-                action: 'admin_login',
-                admin_name: adminName,
-                details: { info: 'Admin paneline giriş yapıldı' }
-            });
-        } catch { /* ignore */ }
 
         const { data, error } = await supabase
             .from('applications')
