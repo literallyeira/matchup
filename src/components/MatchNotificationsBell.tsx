@@ -36,11 +36,14 @@ export function MatchNotificationsBell() {
   const [matches, setMatches] = useState<Array<{ id: string; created_at: string; matchedWith: { id: string; first_name: string; last_name: string; photo_url?: string | null } }>>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  /** Bu oturumda "Bildirimleri temizle" ile isaretlenen id'ler - badge hemen guncellenir */
+  const [clearedIds, setClearedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user) {
       setCharacterId(null);
       setMatches([]);
+      setClearedIds(new Set());
       return;
     }
     try {
@@ -54,6 +57,10 @@ export function MatchNotificationsBell() {
       setCharacterId(null);
     }
   }, [status, session?.user]);
+
+  useEffect(() => {
+    setClearedIds(new Set());
+  }, [characterId]);
 
   const fetchMatches = useCallback(async () => {
     if (!characterId) return;
@@ -77,8 +84,9 @@ export function MatchNotificationsBell() {
     return () => clearInterval(t);
   }, [characterId, fetchMatches]);
 
-  const seenIds = characterId ? getSeenIds(characterId) : new Set<string>();
-  const newMatches = matches.filter((m) => !seenIds.has(m.id));
+  const storedSeen = characterId ? getSeenIds(characterId) : new Set<string>();
+  const effectiveSeen = new Set<string>([...storedSeen, ...clearedIds]);
+  const newMatches = matches.filter((m) => !effectiveSeen.has(m.id));
   const newCount = newMatches.length;
 
   const goToMatches = () => {
@@ -144,7 +152,7 @@ export function MatchNotificationsBell() {
                           {m.matchedWith.first_name} {m.matchedWith.last_name}
                         </p>
                         <p className="text-xs text-[var(--matchup-text-muted)]">
-                          {!seenIds.has(m.id) ? <span className="text-[var(--matchup-primary)]">Yeni eşleşme</span> : 'Eşleşme'}
+                          {!effectiveSeen.has(m.id) ? <span className="text-[var(--matchup-primary)]">Yeni eşleşme</span> : 'Eşleşme'}
                         </p>
                       </div>
                     </li>
@@ -164,8 +172,10 @@ export function MatchNotificationsBell() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (characterId) {
-                      markAsSeen(characterId, matches.map((m) => m.id));
+                    if (characterId && matches.length) {
+                      const ids = matches.map((m) => m.id);
+                      markAsSeen(characterId, ids);
+                      setClearedIds((prev) => new Set([...prev, ...ids]));
                       setOpen(false);
                       window.dispatchEvent(new CustomEvent('matchup-notifications-cleared'));
                     }
