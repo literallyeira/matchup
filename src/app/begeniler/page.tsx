@@ -35,6 +35,7 @@ export default function BegenilerPage() {
   const [showReportModal, setShowReportModal] = useState<Application | null>(null);
   const [reportReason, setReportReason] = useState('');
   const [blockReportPending, setBlockReportPending] = useState<string | null>(null);
+  const [bulkAction, setBulkAction] = useState<'match' | 'reject' | null>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -126,6 +127,60 @@ export default function BegenilerPage() {
   const handleDismiss = (profileId: string) => {
     setLikedBy((prev) => prev.filter((p) => p.id !== profileId));
     setLikedByCount((c) => Math.max(0, c - 1));
+  };
+
+  const handleBulkMatch = async () => {
+    if (!selectedCharacter || likedBy.length === 0) return;
+    setBulkAction('match');
+    const list = [...likedBy];
+    let matched = 0;
+    let errors = 0;
+    try {
+      for (const profile of list) {
+        const res = await fetch('/api/like', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ toApplicationId: profile.id, characterId: selectedCharacter.id }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLikedBy((prev) => prev.filter((p) => p.id !== profile.id));
+          setLikedByCount((c) => Math.max(0, c - 1));
+          if (data.isMatch) matched++;
+        } else if (res.status === 429) {
+          showToast('Günlük like hakkınız doldu.', 'error');
+          break;
+        } else errors++;
+      }
+      if (matched > 0) showToast(`${matched} eşleşme oluştu!`, 'success');
+      if (errors > 0) showToast(`${errors} profil işlenemedi.`, 'error');
+    } catch {
+      showToast('Bağlantı hatası', 'error');
+    } finally {
+      setBulkAction(null);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    if (!selectedCharacter || likedBy.length === 0) return;
+    setBulkAction('reject');
+    const list = [...likedBy];
+    try {
+      await Promise.all(list.map((profile) =>
+        fetch('/api/dislike', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ toApplicationId: profile.id, characterId: selectedCharacter.id }),
+        })
+      ));
+      setLikedBy([]);
+      setLikedByCount(0);
+      showToast(`${list.length} profil reddedildi.`, 'success');
+    } catch {
+      showToast('Bağlantı hatası', 'error');
+    } finally {
+      setBulkAction(null);
+    }
   };
 
   const handleBlock = async (profile: Application) => {
@@ -260,6 +315,31 @@ export default function BegenilerPage() {
             <p className="text-[var(--matchup-text-muted)] text-sm">Profilini güncelleyip daha fazla kişiye ulaş!</p>
           </div>
         ) : (
+          <>
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={handleBulkMatch}
+              disabled={!!bulkAction}
+              className="btn-primary flex-1 py-2.5 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {bulkAction === 'match' ? (
+                <><span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" /> İşleniyor...</>
+              ) : (
+                <><i className="fa-solid fa-heart" /> Hepsini Eşleş</>
+              )}
+            </button>
+            <button
+              onClick={handleBulkReject}
+              disabled={!!bulkAction}
+              className="flex-1 py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {bulkAction === 'reject' ? (
+                <><span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" /> İşleniyor...</>
+              ) : (
+                <><i className="fa-solid fa-xmark" /> Hepsini Reddet</>
+              )}
+            </button>
+          </div>
           <div className="space-y-4">
             {likedBy.map((profile) => {
               const profilePhotos = [profile.photo_url, ...(profile.extra_photos || [])].filter(Boolean);
@@ -375,6 +455,7 @@ export default function BegenilerPage() {
               </div>
             ); })}
           </div>
+          </>
         )}
       </div>
 
