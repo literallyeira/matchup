@@ -34,7 +34,7 @@ export default function AdminPage() {
     const [paymentsList, setPaymentsList] = useState<Array<{ id: string; application_id: string; product: string; amount: number; created_at?: string; first_name?: string; last_name?: string; character_name?: string }>>([]);
     const [loadingSubs, setLoadingSubs] = useState(false);
     const [loadingPayments, setLoadingPayments] = useState(false);
-    const [paymentStats, setPaymentStats] = useState<{ total: number; lastWeek: number; fromSubscriptions: number; fromBoost: number; fromAds: number } | null>(null);
+    const [paymentStats, setPaymentStats] = useState<{ total: number; lastWeek: number; fromSubscriptions: number; fromBoost: number; fromAds: number; soldPlusCount?: number; soldProCount?: number; activeSubscriptionsCount?: number; activePlus?: number; activePro?: number } | null>(null);
     const [loadingPaymentStats, setLoadingPaymentStats] = useState(false);
     const [adsList, setAdsList] = useState<Array<{ id: string; gtaw_user_id: number; position: string; image_url: string; link_url: string; expires_at: string; is_active: boolean; created_at: string }>>([]);
     const [loadingAds, setLoadingAds] = useState(false);
@@ -1330,28 +1330,44 @@ export default function AdminPage() {
                                         <i className="fa-solid fa-spinner fa-spin" /> Yükleniyor...
                                     </div>
                                 ) : paymentStats ? (
-                                    <div className="flex gap-6 flex-wrap">
-                                        <div className="text-center">
-                                            <p className="text-2xl font-bold text-white">${paymentStats.total.toLocaleString('tr-TR')}</p>
-                                            <p className="text-xs text-[var(--matchup-text-muted)]">Toplam</p>
+                                    <>
+                                        <div className="flex gap-6 flex-wrap">
+                                            <div className="text-center">
+                                                <p className="text-2xl font-bold text-white">${paymentStats.total.toLocaleString('tr-TR')}</p>
+                                                <p className="text-xs text-[var(--matchup-text-muted)]">Toplam</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-2xl font-bold text-emerald-400">${paymentStats.lastWeek.toLocaleString('tr-TR')}</p>
+                                                <p className="text-xs text-[var(--matchup-text-muted)]">Son 7 gün</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xl font-bold text-violet-400">${paymentStats.fromSubscriptions.toLocaleString('tr-TR')}</p>
+                                                <p className="text-xs text-[var(--matchup-text-muted)]">Üyelikler (Plus+Pro)</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xl font-bold text-yellow-400">${paymentStats.fromBoost.toLocaleString('tr-TR')}</p>
+                                                <p className="text-xs text-[var(--matchup-text-muted)]">Boost</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xl font-bold text-pink-400">${paymentStats.fromAds.toLocaleString('tr-TR')}</p>
+                                                <p className="text-xs text-[var(--matchup-text-muted)]">Reklamlar</p>
+                                            </div>
                                         </div>
-                                        <div className="text-center">
-                                            <p className="text-2xl font-bold text-emerald-400">${paymentStats.lastWeek.toLocaleString('tr-TR')}</p>
-                                            <p className="text-xs text-[var(--matchup-text-muted)]">Son 7 gün</p>
+                                        <div className="mt-4 pt-4 border-t border-emerald-500/20 flex gap-6 flex-wrap">
+                                            <div className="text-center">
+                                                <p className="text-lg font-bold text-pink-400">{paymentStats.soldPlusCount ?? 0}</p>
+                                                <p className="text-xs text-[var(--matchup-text-muted)]">Satılan Plus</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-lg font-bold text-violet-400">{paymentStats.soldProCount ?? 0}</p>
+                                                <p className="text-xs text-[var(--matchup-text-muted)]">Satılan Pro</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-lg font-bold text-emerald-400">{paymentStats.activeSubscriptionsCount ?? 0}</p>
+                                                <p className="text-xs text-[var(--matchup-text-muted)]">Aktif üyelik</p>
+                                            </div>
                                         </div>
-                                        <div className="text-center">
-                                            <p className="text-xl font-bold text-violet-400">${paymentStats.fromSubscriptions.toLocaleString('tr-TR')}</p>
-                                            <p className="text-xs text-[var(--matchup-text-muted)]">Üyelikler (Plus+Pro)</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-xl font-bold text-yellow-400">${paymentStats.fromBoost.toLocaleString('tr-TR')}</p>
-                                            <p className="text-xs text-[var(--matchup-text-muted)]">Boost</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-xl font-bold text-pink-400">${paymentStats.fromAds.toLocaleString('tr-TR')}</p>
-                                            <p className="text-xs text-[var(--matchup-text-muted)]">Reklamlar</p>
-                                        </div>
-                                    </div>
+                                    </>
                                 ) : (
                                     <p className="text-[var(--matchup-text-muted)] text-sm">Veri yok</p>
                                 )}

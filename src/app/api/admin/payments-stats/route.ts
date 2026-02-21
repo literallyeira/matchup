@@ -11,9 +11,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { data: payments } = await supabase
-      .from('payments')
-      .select('amount, product, created_at');
+    const nowIso = new Date().toISOString();
+    const [
+      { data: payments },
+      { count: soldPlusCount },
+      { count: soldProCount },
+      { data: activeSubs },
+    ] = await Promise.all([
+      supabase.from('payments').select('amount, product, created_at'),
+      supabase.from('payments').select('*', { count: 'exact', head: true }).eq('product', 'plus'),
+      supabase.from('payments').select('*', { count: 'exact', head: true }).eq('product', 'pro'),
+      supabase.from('subscriptions').select('tier').gt('expires_at', nowIso),
+    ]);
 
     const list = payments || [];
     const now = new Date();
@@ -45,12 +54,21 @@ export async function GET(request: Request) {
     const fromBoost = byProduct.boost;
     const fromAds = byProduct.ad_left + byProduct.ad_right;
 
+    const activePlus = (activeSubs || []).filter((s: { tier: string }) => s.tier === 'plus').length;
+    const activePro = (activeSubs || []).filter((s: { tier: string }) => s.tier === 'pro').length;
+    const activeSubscriptionsCount = (activeSubs || []).length;
+
     return NextResponse.json({
       total,
       lastWeek,
       fromSubscriptions,
       fromBoost,
       fromAds,
+      soldPlusCount: soldPlusCount ?? 0,
+      soldProCount: soldProCount ?? 0,
+      activeSubscriptionsCount,
+      activePlus,
+      activePro,
       byProduct: {
         plus: byProduct.plus,
         pro: byProduct.pro,
