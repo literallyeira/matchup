@@ -51,7 +51,7 @@ export default function AdminPage() {
     const [loadingPartners, setLoadingPartners] = useState(false);
     const [partnerForm, setPartnerForm] = useState({ name: '', logo_url: '', link_url: '', sort_order: 0 });
     const [partnerSubmitting, setPartnerSubmitting] = useState(false);
-    const [activeStats, setActiveStats] = useState<{ todayActive: number; yesterdayActive: number; weekActive: number; record: number } | null>(null);
+    const [activeStats, setActiveStats] = useState<{ todayActive: number; yesterdayActive: number; weekActive: number; currentActive: number; record: number; dailyHistory?: Array<{ stat_date: string; active_count: number }> } | null>(null);
     const [loadingActiveStats, setLoadingActiveStats] = useState(false);
 
     // Filters
@@ -981,7 +981,12 @@ export default function AdminPage() {
                                     <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
                                 </div>
                             ) : activeStats ? (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                                    <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-center">
+                                        <p className="text-2xl font-bold text-green-400">{activeStats.currentActive ?? 0}</p>
+                                        <p className="text-xs text-[var(--matchup-text-muted)]">Şu an aktif (2 saat)</p>
+                                    </div>
                                     <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center">
                                         <p className="text-2xl font-bold text-emerald-400">{activeStats.todayActive}</p>
                                         <p className="text-xs text-[var(--matchup-text-muted)]">Bugün çevrimiçi</p>
@@ -999,6 +1004,30 @@ export default function AdminPage() {
                                         <p className="text-xs text-[var(--matchup-text-muted)]">Rekor (tek gün)</p>
                                     </div>
                                 </div>
+                                {activeStats.dailyHistory && activeStats.dailyHistory.length > 0 && (
+                                    <div className="pt-4 border-t border-white/10">
+                                        <h3 className="font-semibold mb-3">Günlük çevrimiçi max (son 30 gün)</h3>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm text-left">
+                                                <thead>
+                                                    <tr className="border-b border-white/10">
+                                                        <th className="pb-2 pr-4 font-medium">Tarih</th>
+                                                        <th className="pb-2 font-medium">Max çevrimiçi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {activeStats.dailyHistory.map((d) => (
+                                                        <tr key={d.stat_date} className="border-b border-white/5">
+                                                            <td className="py-2 pr-4 text-[var(--matchup-text-muted)]">{d.stat_date}</td>
+                                                            <td className="py-2 font-medium">{d.active_count}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                                </>
                             ) : (
                                 <p className="text-[var(--matchup-text-muted)] py-8 text-center">Veri yüklenemedi.</p>
                             )}
