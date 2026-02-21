@@ -107,8 +107,8 @@ export function MatchNotificationsBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" aria-hidden onClick={() => setOpen(false)} />
-          <div className="relative z-50 mt-2 w-[320px] max-h-[70vh] overflow-hidden rounded-2xl bg-[var(--matchup-bg-card)] border border-[var(--matchup-border)] shadow-2xl animate-fade-in">
-            <div className="p-3 border-b border-white/10 flex items-center justify-between">
+          <div className="relative z-50 mt-2 w-[320px] max-h-[85vh] flex flex-col rounded-2xl bg-[var(--matchup-bg-card)] border border-[var(--matchup-border)] shadow-2xl animate-fade-in">
+            <div className="p-3 border-b border-white/10 flex items-center justify-between flex-shrink-0">
               <h3 className="font-semibold flex items-center gap-2">
                 <i className="fa-solid fa-heart text-[var(--matchup-primary)]" />
                 Bildirimler
@@ -117,7 +117,7 @@ export function MatchNotificationsBell() {
                 <span className="text-xs text-[var(--matchup-primary)] font-medium">{newCount} yeni eşleşme</span>
               )}
             </div>
-            <div className="overflow-y-auto max-h-[60vh]">
+            <div className="overflow-y-auto min-h-0 flex-1">
               {loading ? (
                 <div className="p-6 text-center text-[var(--matchup-text-muted)] text-sm">
                   <span className="inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -152,7 +152,7 @@ export function MatchNotificationsBell() {
                 </ul>
               )}
             </div>
-            <div className="p-3 border-t border-white/10 space-y-2">
+            <div className="p-3 border-t border-white/10 space-y-2 flex-shrink-0">
               <Link
                 href="/?tab=matches"
                 onClick={goToMatches}
