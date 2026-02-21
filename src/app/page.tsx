@@ -127,6 +127,7 @@ function HomeContent() {
   const [showReportModal, setShowReportModal] = useState<Application | null>(null);
   const [reportReason, setReportReason] = useState('');
   const [blockReportPending, setBlockReportPending] = useState<string | null>(null);
+  const [seenMatchIds, setSeenMatchIds] = useState<Set<string>>(new Set());
 
   const [testMode, setTestMode] = useState(false);
   const [testModeLoggedIn, setTestModeLoggedIn] = useState(false);
@@ -153,6 +154,22 @@ function HomeContent() {
     const saved = localStorage.getItem('matchup_test_mode');
     if (saved === 'true') setTestMode(true);
   }, []);
+
+  const SEEN_MATCH_KEY = 'matchup_seen_match_ids';
+  const loadSeenMatchIds = useCallback((cid: number): Set<string> => {
+    try {
+      const raw = localStorage.getItem(`${SEEN_MATCH_KEY}_${cid}`);
+      if (!raw) return new Set<string>();
+      const arr = JSON.parse(raw) as string[];
+      return new Set<string>(Array.isArray(arr) ? arr : []);
+    } catch {
+      return new Set<string>();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedCharacter && !testMode) setSeenMatchIds(loadSeenMatchIds(selectedCharacter.id));
+  }, [selectedCharacter?.id, testMode, loadSeenMatchIds]);
 
   const saveSelectedCharacter = useCallback((char: Character | null) => {
     if (char) localStorage.setItem('matchup_selected_character', JSON.stringify({ id: char.id, memberid: char.memberid, firstname: char.firstname, lastname: char.lastname }));
@@ -275,6 +292,11 @@ function HomeContent() {
     }
   }, [hasApplication, activeTab, showForm, fetchPossibleMatches]);
 
+  // URL'den tab=matches ise eşleşmeler sekmesini aç
+  useEffect(() => {
+    if (searchParams.get('tab') === 'matches') setActiveTab('matches');
+  }, [searchParams]);
+
   // Eşleşmeler sekmesine geçince listeyi güncelle (30s cache)
   const matchesFetchedAt = useRef(0);
   useEffect(() => {
@@ -287,6 +309,22 @@ function HomeContent() {
         .catch(() => {});
     }
   }, [activeTab, hasApplication, selectedCharacter?.id, testMode]);
+
+  // Eşleşmeler sekmesine girince hepsini "görüldü" işaretle
+  useEffect(() => {
+    if (activeTab !== 'matches' || !selectedCharacter || testMode || matches.length === 0) return;
+    const ids = matches.map((m) => m.id);
+    setSeenMatchIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      try {
+        localStorage.setItem(`${SEEN_MATCH_KEY}_${selectedCharacter.id}`, JSON.stringify([...next]));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, [activeTab, selectedCharacter?.id, testMode, matches]);
 
   const handleLike = async (profile: Application) => {
     if (!selectedCharacter || testMode) return;
@@ -963,16 +1001,21 @@ function HomeContent() {
         {/* Tabs */}
         <div className="flex rounded-xl bg-[var(--matchup-bg-input)] p-1 mb-6">
           <button
-            onClick={() => setActiveTab('discover')}
+            onClick={() => { setActiveTab('discover'); window.history.replaceState({}, '', '/'); }}
             className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'discover' ? 'bg-[var(--matchup-primary)] text-white' : 'text-[var(--matchup-text-muted)]'}`}
           >
             <i className="fa-solid fa-compass mr-2" /> Keşfet
           </button>
           <button
-            onClick={() => setActiveTab('matches')}
+            onClick={() => { setActiveTab('matches'); window.history.replaceState({}, '', '/?tab=matches'); }}
             className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'matches' ? 'bg-[var(--matchup-primary)] text-white' : 'text-[var(--matchup-text-muted)]'}`}
           >
             <i className="fa-solid fa-heart mr-2" /> Eşleşmeler {matches.length > 0 && <span className="ml-1">({matches.length})</span>}
+            {matches.filter((m) => !seenMatchIds.has(m.id)).length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[var(--matchup-primary)]/20 text-[var(--matchup-primary)] text-xs font-semibold">
+                {matches.filter((m) => !seenMatchIds.has(m.id)).length} yeni
+              </span>
+            )}
           </button>
         </div>
 
@@ -1129,6 +1172,31 @@ function HomeContent() {
 
         {activeTab === 'matches' && (
           <div className="space-y-4">
+            {matches.length > 0 && (
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-[var(--matchup-text-muted)]">
+                  {matches.length} eşleşme
+                  {matches.filter((m) => !seenMatchIds.has(m.id)).length > 0 && (
+                    <span className="ml-2 text-[var(--matchup-primary)]">· {matches.filter((m) => !seenMatchIds.has(m.id)).length} yeni</span>
+                  )}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    matchesFetchedAt.current = 0;
+                    if (selectedCharacter) {
+                      fetch(`/api/my-matches?characterId=${selectedCharacter.id}`)
+                        .then((res) => res.json())
+                        .then((data) => setMatches(data.matches || []))
+                        .catch(() => {});
+                    }
+                  }}
+                  className="text-xs text-[var(--matchup-text-muted)] hover:text-white flex items-center gap-1.5"
+                >
+                  <i className="fa-solid fa-arrows-rotate" /> Yenile
+                </button>
+              </div>
+            )}
             {isLoadingMatches ? (
               <div className="text-center py-12">
                 <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto" />
@@ -1142,10 +1210,16 @@ function HomeContent() {
             ) : (
               matches.map((match) => {
                 const matchPhotos = [match.matchedWith.photo_url, ...(match.matchedWith.extra_photos || []).filter(Boolean)];
+                const isNew = !seenMatchIds.has(match.id);
                 return (
                 <div key={match.id} className="rounded-3xl overflow-hidden shadow-2xl bg-[var(--matchup-bg-card)] animate-fade-in">
                   <MatchPhotoGallery photos={matchPhotos}>
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                    {isNew && (
+                      <div className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full bg-[var(--matchup-primary)] text-white text-xs font-semibold">
+                        Yeni
+                      </div>
+                    )}
                     <div className="absolute bottom-0 left-0 right-0 pt-12 pb-3 px-4">
                       {/* Rozetler */}
                       {(() => {

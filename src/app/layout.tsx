@@ -6,6 +6,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import AdBanners from "@/components/AdBanners";
 import PartnersSection from "@/components/PartnersSection";
+import { MatchNotificationsBell } from "@/components/MatchNotificationsBell";
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
@@ -51,6 +52,7 @@ export default function RootLayout({
           <div className="flex-1 w-full">
             {children}
           </div>
+          <MatchNotificationsBell />
 
           <PartnersSection />
 

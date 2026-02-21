@@ -51,7 +51,8 @@ export async function GET(request: Request) {
           extra_photos, prompts, is_verified, created_at
         )
       `)
-                .or(`application_1_id.eq.${myApplication.id},application_2_id.eq.${myApplication.id}`),
+                .or(`application_1_id.eq.${myApplication.id},application_2_id.eq.${myApplication.id}`)
+                .order('created_at', { ascending: false }),
             supabase.from('blocked_users').select('blocked_application_id').eq('blocker_application_id', myApplication.id),
         ]);
 
