@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// GET - Get all matches (admin only)
+// GET - Get all matches (admin only), paginated
 export async function GET(request: Request) {
     const authHeader = request.headers.get('Authorization');
     const adminName = request.headers.get('X-Admin-Name') || 'bilinmiyor';
@@ -10,28 +10,36 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log(`[ADMIN] ${adminName} eşleşmeleri görüntüledi`);
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(10, parseInt(searchParams.get('limit') || '50', 10)));
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
     try {
-        const { data, error } = await supabase
-            .from('matches')
-            .select(`
-        id,
-        application_1_id,
-        application_2_id,
-        created_at,
-        created_by,
-        application_1:applications!matches_application_1_id_fkey(
-          id, first_name, last_name, photo_url, character_name
-        ),
-        application_2:applications!matches_application_2_id_fkey(
-          id, first_name, last_name, photo_url, character_name
-        )
-      `)
-            .order('created_at', { ascending: false });
+        const [{ count }, { data, error }] = await Promise.all([
+            supabase.from('matches').select('*', { count: 'exact', head: true }),
+            supabase
+                .from('matches')
+                .select(`
+          id,
+          application_1_id,
+          application_2_id,
+          created_at,
+          created_by,
+          application_1:applications!matches_application_1_id_fkey(
+            id, first_name, last_name, photo_url, character_name
+          ),
+          application_2:applications!matches_application_2_id_fkey(
+            id, first_name, last_name, photo_url, character_name
+          )
+        `)
+                .order('created_at', { ascending: false })
+                .range(from, to)
+        ]);
 
         if (error) throw error;
-        return NextResponse.json(data);
+        return NextResponse.json({ matches: data || [], total: count ?? 0 });
     } catch (error) {
         console.error('Error:', error);
         return NextResponse.json({ error: 'Server error' }, { status: 500 });

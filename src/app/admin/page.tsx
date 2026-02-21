@@ -17,6 +17,10 @@ export default function AdminPage() {
     const [password, setPassword] = useState('');
     const [applications, setApplications] = useState<Application[]>([]);
     const [matches, setMatches] = useState<MatchWithApps[]>([]);
+    const [totalMatches, setTotalMatches] = useState(0);
+    const [matchesPage, setMatchesPage] = useState(1);
+    const [matchesLimit] = useState(50);
+    const [loadingMatches, setLoadingMatches] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -156,9 +160,11 @@ export default function AdminPage() {
         }
     };
 
-    const fetchMatches = async (savedPassword?: string) => {
+    const fetchMatches = async (savedPassword?: string, page?: number) => {
+        const p = page ?? matchesPage;
+        setLoadingMatches(true);
         try {
-            const response = await fetch('/api/matches', {
+            const response = await fetch(`/api/matches?page=${p}&limit=${matchesLimit}`, {
                 headers: {
                     'Authorization': savedPassword || password,
                     'X-Admin-Name': getAdminName()
@@ -167,10 +173,14 @@ export default function AdminPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                setMatches(data);
+                setMatches(data.matches ?? []);
+                setTotalMatches(data.total ?? 0);
+                setMatchesPage(p);
             }
         } catch {
             console.error('Fetch matches error');
+        } finally {
+            setLoadingMatches(false);
         }
     };
 
@@ -210,6 +220,7 @@ export default function AdminPage() {
 
             if (response.ok) {
                 setMatches(matches.filter(m => m.id !== id));
+                setTotalMatches(prev => Math.max(0, prev - 1));
             }
         } catch {
             console.error('Delete match error');
@@ -528,6 +539,11 @@ export default function AdminPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
 
+    useEffect(() => {
+        if (activeTab === 'matches' && isAuthenticated) fetchMatches(undefined, 1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
     const getSubLabel = (tier: string) => {
         if (tier === 'plus') return 'MatchUp+';
         if (tier === 'pro') return 'MatchUp Pro';
@@ -818,7 +834,7 @@ export default function AdminPage() {
                             : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
                             }`}
                     >
-                        <i className="fa-solid fa-heart mr-2"></i>Eşleşmeler ({matches.length})
+                        <i className="fa-solid fa-heart mr-2"></i>Eşleşmeler ({totalMatches})
                     </button>
                     <button
                         onClick={() => setActiveTab('subscriptions')}
@@ -1137,15 +1153,21 @@ export default function AdminPage() {
 
                 {activeTab === 'matches' && (
                     <div className="space-y-6">
-                        {matches.length === 0 ? (
+                        {totalMatches === 0 && !loadingMatches ? (
                             <div className="card text-center py-16 animate-fade-in">
                                 <i className="fa-solid fa-heart-crack text-6xl text-[var(--matchup-text-muted)] mb-4"></i>
                                 <p className="text-[var(--matchup-text-muted)] text-lg">
                                     Henüz karşılıklı like ile eşleşme yok
                                 </p>
                             </div>
+                        ) : loadingMatches ? (
+                            <div className="text-center py-16">
+                                <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full mx-auto" />
+                                <p className="mt-4 text-[var(--matchup-text-muted)]">Yükleniyor...</p>
+                            </div>
                         ) : (
-                            matches.map((match, index) => (
+                            <>
+                            {matches.map((match, index) => (
                                 <div
                                     key={match.id}
                                     className="card animate-fade-in"
@@ -1218,7 +1240,32 @@ export default function AdminPage() {
                                         </div>
                                     </div>
                                 </div>
-                            ))
+                            ))}
+                            {/* Pagination */}
+                            {totalMatches > matchesLimit && (
+                                <div className="flex items-center justify-between gap-4 pt-4">
+                                    <p className="text-sm text-[var(--matchup-text-muted)]">
+                                        {(matchesPage - 1) * matchesLimit + 1} - {Math.min(matchesPage * matchesLimit, totalMatches)} / {totalMatches}
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => fetchMatches(undefined, matchesPage - 1)}
+                                            disabled={matchesPage <= 1}
+                                            className="btn-secondary text-sm disabled:opacity-50"
+                                        >
+                                            <i className="fa-solid fa-chevron-left mr-1"></i>Önceki
+                                        </button>
+                                        <button
+                                            onClick={() => fetchMatches(undefined, matchesPage + 1)}
+                                            disabled={matchesPage * matchesLimit >= totalMatches}
+                                            className="btn-secondary text-sm disabled:opacity-50"
+                                        >
+                                            Sonraki<i className="fa-solid fa-chevron-right ml-1"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            </>
                         )}
                     </div>
                 )}
