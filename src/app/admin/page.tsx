@@ -17,6 +17,7 @@ export default function AdminPage() {
     const [password, setPassword] = useState('');
     const [applications, setApplications] = useState<Application[]>([]);
     const [matches, setMatches] = useState<MatchWithApps[]>([]);
+    const [allMatchesForApps, setAllMatchesForApps] = useState<MatchWithApps[]>([]);
     const [totalMatches, setTotalMatches] = useState(0);
     const [matchesPage, setMatchesPage] = useState(1);
     const [matchesLimit] = useState(50);
@@ -220,6 +221,7 @@ export default function AdminPage() {
 
             if (response.ok) {
                 setMatches(matches.filter(m => m.id !== id));
+                setAllMatchesForApps(prev => prev.filter(m => m.id !== id));
                 setTotalMatches(prev => Math.max(0, prev - 1));
             }
         } catch {
@@ -227,10 +229,26 @@ export default function AdminPage() {
         }
     };
 
-    // Get matches for a specific application
+    const fetchAllMatchesForApps = async (savedPassword?: string) => {
+        try {
+            const res = await fetch(`/api/matches?page=1&limit=5000`, {
+                headers: {
+                    Authorization: savedPassword || password || localStorage.getItem('adminPassword') || '',
+                    'X-Admin-Name': getAdminName()
+                }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAllMatchesForApps(data.matches ?? []);
+            } else setAllMatchesForApps([]);
+        } catch { setAllMatchesForApps([]); }
+    };
+
+    // Get matches for a specific application (uses full list for profiller tab)
     const getMatchesForApp = (appId: string): Application[] => {
+        const source = activeTab === 'applications' && allMatchesForApps.length > 0 ? allMatchesForApps : matches;
         const matchedApps: Application[] = [];
-        matches.forEach(m => {
+        source.forEach(m => {
             if (m.application_1_id === appId && m.application_2) {
                 matchedApps.push(m.application_2);
             } else if (m.application_2_id === appId && m.application_1) {
@@ -502,6 +520,11 @@ export default function AdminPage() {
     }, [applications.length, isAuthenticated]);
 
     useEffect(() => {
+        if (activeTab === 'applications' && isAuthenticated && applications.length > 0) fetchAllMatchesForApps();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated, applications.length]);
+
+    useEffect(() => {
         if (activeTab === 'subscriptions' && isAuthenticated) fetchActiveSubscriptionsList();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
@@ -572,6 +595,7 @@ export default function AdminPage() {
             setIsAuthenticated(true);
             fetchApplications(savedPassword);
             fetchMatches(savedPassword);
+            fetchAllMatchesForApps(savedPassword);
             fetchAdsEnabled();
             fetchLinkStats();
         }
@@ -580,17 +604,18 @@ export default function AdminPage() {
 
     const ACTIVE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 saat
 
-    // Match count per application
+    // Match count per application (profiller tab icin full list kullan)
     const matchCountMap = useMemo(() => {
         const map: Record<string, number> = {};
-        matches.forEach(m => {
+        const source = activeTab === 'applications' && allMatchesForApps.length > 0 ? allMatchesForApps : matches;
+        source.forEach(m => {
             const id1 = m.application_1_id;
             const id2 = m.application_2_id;
             map[id1] = (map[id1] || 0) + 1;
             map[id2] = (map[id2] || 0) + 1;
         });
         return map;
-    }, [matches]);
+    }, [matches, allMatchesForApps, activeTab]);
 
     // Filtered and sorted applications
     const filteredApplications = useMemo(() => {
@@ -767,7 +792,7 @@ export default function AdminPage() {
                             {testMode ? 'Test Modu: Açık' : 'Test Modu: Kapalı'}
                         </button>
                         <button
-                            onClick={() => { fetchApplications(); fetchMatches(); fetchLinkStats(); fetchReferralStats(); if (activeTab === 'payments') { fetchPaymentStats(); } }}
+                            onClick={() => { fetchApplications(); fetchMatches(); fetchAllMatchesForApps(); fetchLinkStats(); fetchReferralStats(); if (activeTab === 'payments') { fetchPaymentStats(); } }}
                             className="btn-secondary"
                         >
                             <i className="fa-solid fa-rotate-right mr-2"></i>Yenile
