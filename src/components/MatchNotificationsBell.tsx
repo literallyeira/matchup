@@ -152,7 +152,7 @@ export function MatchNotificationsBell() {
                 </ul>
               )}
             </div>
-            <div className="p-3 border-t border-white/10">
+            <div className="p-3 border-t border-white/10 space-y-2">
               <Link
                 href="/?tab=matches"
                 onClick={goToMatches}
@@ -160,6 +160,21 @@ export function MatchNotificationsBell() {
               >
                 Eşleşmelere git
               </Link>
+              {matches.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (characterId) {
+                      markAsSeen(characterId, matches.map((m) => m.id));
+                      setOpen(false);
+                      window.dispatchEvent(new CustomEvent('matchup-notifications-cleared'));
+                    }
+                  }}
+                  className="block w-full py-2 rounded-xl border border-white/20 text-[var(--matchup-text-muted)] text-sm hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  Bildirimleri temizle
+                </button>
+              )}
             </div>
           </div>
         </>

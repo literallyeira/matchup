@@ -128,6 +128,7 @@ function HomeContent() {
   const [reportReason, setReportReason] = useState('');
   const [blockReportPending, setBlockReportPending] = useState<string | null>(null);
   const [seenMatchIds, setSeenMatchIds] = useState<Set<string>>(new Set());
+  const [selectedMatchCard, setSelectedMatchCard] = useState<Match | null>(null);
 
   const [testMode, setTestMode] = useState(false);
   const [testModeLoggedIn, setTestModeLoggedIn] = useState(false);
@@ -170,6 +171,14 @@ function HomeContent() {
   useEffect(() => {
     if (selectedCharacter && !testMode) setSeenMatchIds(loadSeenMatchIds(selectedCharacter.id));
   }, [selectedCharacter?.id, testMode, loadSeenMatchIds]);
+
+  useEffect(() => {
+    const onCleared = () => {
+      if (selectedCharacter) setSeenMatchIds(loadSeenMatchIds(selectedCharacter.id));
+    };
+    window.addEventListener('matchup-notifications-cleared', onCleared);
+    return () => window.removeEventListener('matchup-notifications-cleared', onCleared);
+  }, [selectedCharacter?.id, loadSeenMatchIds]);
 
   const saveSelectedCharacter = useCallback((char: Character | null) => {
     if (char) localStorage.setItem('matchup_selected_character', JSON.stringify({ id: char.id, memberid: char.memberid, firstname: char.firstname, lastname: char.lastname }));
@@ -1208,94 +1217,122 @@ function HomeContent() {
                 <p className="text-[var(--matchup-text-muted)] text-sm">Beğendiğin profiller seni de beğenirse burada görünecek.</p>
               </div>
             ) : (
-              matches.map((match) => {
-                const matchPhotos = [match.matchedWith.photo_url, ...(match.matchedWith.extra_photos || []).filter(Boolean)];
-                const isNew = !seenMatchIds.has(match.id);
-                return (
-                <div key={match.id} className="rounded-3xl overflow-hidden shadow-2xl bg-[var(--matchup-bg-card)] animate-fade-in">
-                  <MatchPhotoGallery photos={matchPhotos}>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-                    {isNew && (
-                      <div className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full bg-[var(--matchup-primary)] text-white text-xs font-semibold">
-                        Yeni
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 pt-12 pb-3 px-4">
-                      {/* Rozetler */}
-                      {(() => {
-                        const badges = getInlineBadges(match.matchedWith);
-                        return badges.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 mb-1.5">
-                            {badges.map(b => (
-                              <span key={b.key} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium ${b.colorClass}`}>
-                                <i className={`fa-solid ${b.icon}`} style={{ fontSize: '8px' }} /> {b.label}
-                              </span>
-                            ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                {matches.map((match) => {
+                  const isNew = !seenMatchIds.has(match.id);
+                  return (
+                    <button
+                      key={match.id}
+                      type="button"
+                      onClick={() => setSelectedMatchCard(match)}
+                      className="rounded-2xl overflow-hidden bg-[var(--matchup-bg-card)] border border-[var(--matchup-border)] hover:border-[var(--matchup-primary)]/40 transition-all text-left flex flex-col items-stretch"
+                    >
+                      <div className="relative aspect-[3/4] w-full">
+                        {match.matchedWith.photo_url ? (
+                          <Image src={match.matchedWith.photo_url} alt="" fill className="object-cover object-top" sizes="(max-width: 640px) 50vw, 33vw" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center">
+                            <i className="fa-solid fa-user text-3xl text-white/40" />
                           </div>
-                        ) : null;
-                      })()}
-                      <h3 className="text-xl font-bold text-white drop-shadow-lg">{match.matchedWith.first_name} {match.matchedWith.last_name}</h3>
-                      <p className="text-white/90 text-xs">{match.matchedWith.age} · {getGenderLabel(match.matchedWith.gender)} · {getPreferenceLabel(match.matchedWith.sexual_preference)}</p>
-                    </div>
-                  </MatchPhotoGallery>
-                  {/* Promptlar */}
-                  {match.matchedWith.prompts && Object.keys(match.matchedWith.prompts).filter(k => match.matchedWith.prompts?.[k]?.trim()).length > 0 && (
-                    <div className="mx-4 mt-3 mb-1 rounded-xl bg-white/[0.06] border border-white/10 px-4 py-3 space-y-2.5">
-                      {PROFILE_PROMPTS.filter(p => match.matchedWith.prompts?.[p.key]?.trim()).map(p => (
-                        <div key={p.key} className="pl-3 border-l-2 border-[var(--matchup-primary)]/60">
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50">{p.label}</p>
-                          <p className="text-sm text-white/90 leading-relaxed mt-0.5">{match.matchedWith.prompts![p.key]}</p>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        {isNew && (
+                          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-[var(--matchup-primary)] text-white text-[10px] font-semibold">Yeni</span>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 p-2">
+                          <p className="text-white font-semibold text-sm truncate drop-shadow-lg">{match.matchedWith.first_name} {match.matchedWith.last_name}</p>
+                          <p className="text-white/80 text-xs">{match.matchedWith.age} · {getGenderLabel(match.matchedWith.gender)}</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="p-4 space-y-3">
-                    <div className="flex gap-2 flex-wrap">
-                      {match.matchedWith.phone ? (
-                        <a href={`tel:${match.matchedWith.phone}`} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm">
-                          <i className="fa-solid fa-phone text-[var(--matchup-primary)]" /> {match.matchedWith.phone}
-                        </a>
-                      ) : (
-                        <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm text-[var(--matchup-text-muted)]">
-                          <i className="fa-solid fa-phone text-[var(--matchup-text-muted)]" /> Belirtilmedi
-                        </span>
-                      )}
-                      <a href={`https://facebrowser-tr.gta.world/${(match.matchedWith.facebrowser || '').replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm truncate max-w-[140px]">
-                        <i className="fa-solid fa-at text-[var(--matchup-primary)]" /> {match.matchedWith.facebrowser}
-                      </a>
-                    </div>
-                    <p className="text-sm text-[var(--matchup-text-muted)] line-clamp-2">{match.matchedWith.description}</p>
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => rejectMatch(match.id, match.myApplicationId, match.matchedWith.id)}
-                        disabled={rejectingId === match.id}
-                        className="flex-1 min-w-[120px] py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm"
-                      >
-                        {rejectingId === match.id ? 'Kaldırılıyor...' : 'Eşleşmeyi Kaldır'}
-                      </button>
-                      <button
-                        onClick={() => { if (confirm(`${match.matchedWith.first_name} ${match.matchedWith.last_name} engellensin mi?`)) handleBlockFromMatches(match.matchedWith); }}
-                        disabled={!!blockReportPending}
-                        className="px-3 py-2 rounded-lg border border-white/20 text-[var(--matchup-text-muted)] hover:text-red-400 hover:border-red-500/30 text-xs"
-                      >
-                        <i className="fa-solid fa-ban mr-1" /> Engelle
-                      </button>
-                      <button
-                        onClick={() => setShowReportModal(match.matchedWith)}
-                        disabled={!!blockReportPending}
-                        className="px-3 py-2 rounded-lg border border-white/20 text-[var(--matchup-text-muted)] hover:text-amber-400 text-xs"
-                      >
-                        <i className="fa-solid fa-flag mr-1" /> Raporla
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                );
-              })
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
       </div>
+
+      {selectedMatchCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 overflow-y-auto animate-fade-in" onClick={() => setSelectedMatchCard(null)}>
+          <div className="w-full max-w-lg my-8 rounded-3xl overflow-hidden shadow-2xl bg-[var(--matchup-bg-card)] animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="relative">
+              <button type="button" onClick={() => setSelectedMatchCard(null)} className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors">
+                <i className="fa-solid fa-times text-lg" />
+              </button>
+              <MatchPhotoGallery photos={[selectedMatchCard.matchedWith.photo_url, ...(selectedMatchCard.matchedWith.extra_photos || [])].filter(Boolean)}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 pt-12 pb-3 px-4">
+                  {(() => {
+                    const badges = getInlineBadges(selectedMatchCard.matchedWith);
+                    return badges.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mb-1.5">
+                        {badges.map(b => (
+                          <span key={b.key} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium ${b.colorClass}`}>
+                            <i className={`fa-solid ${b.icon}`} style={{ fontSize: '8px' }} /> {b.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
+                  <h3 className="text-xl font-bold text-white drop-shadow-lg">{selectedMatchCard.matchedWith.first_name} {selectedMatchCard.matchedWith.last_name}</h3>
+                  <p className="text-white/90 text-xs">{selectedMatchCard.matchedWith.age} · {getGenderLabel(selectedMatchCard.matchedWith.gender)} · {getPreferenceLabel(selectedMatchCard.matchedWith.sexual_preference)}</p>
+                </div>
+              </MatchPhotoGallery>
+            </div>
+            {selectedMatchCard.matchedWith.prompts && Object.keys(selectedMatchCard.matchedWith.prompts).filter(k => selectedMatchCard.matchedWith.prompts?.[k]?.trim()).length > 0 && (
+              <div className="mx-4 mt-3 mb-1 rounded-xl bg-white/[0.06] border border-white/10 px-4 py-3 space-y-2.5">
+                {PROFILE_PROMPTS.filter(p => selectedMatchCard.matchedWith.prompts?.[p.key]?.trim()).map(p => (
+                  <div key={p.key} className="pl-3 border-l-2 border-[var(--matchup-primary)]/60">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50">{p.label}</p>
+                    <p className="text-sm text-white/90 leading-relaxed mt-0.5">{selectedMatchCard.matchedWith.prompts![p.key]}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="p-4 space-y-3">
+              <div className="flex gap-2 flex-wrap">
+                {selectedMatchCard.matchedWith.phone ? (
+                  <a href={`tel:${selectedMatchCard.matchedWith.phone}`} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm">
+                    <i className="fa-solid fa-phone text-[var(--matchup-primary)]" /> {selectedMatchCard.matchedWith.phone}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm text-[var(--matchup-text-muted)]">
+                    <i className="fa-solid fa-phone text-[var(--matchup-text-muted)]" /> Belirtilmedi
+                  </span>
+                )}
+                <a href={`https://facebrowser-tr.gta.world/${(selectedMatchCard.matchedWith.facebrowser || '').replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--matchup-bg-input)] text-sm truncate max-w-[140px]">
+                  <i className="fa-solid fa-at text-[var(--matchup-primary)]" /> {selectedMatchCard.matchedWith.facebrowser}
+                </a>
+              </div>
+              <p className="text-sm text-[var(--matchup-text-muted)]">{selectedMatchCard.matchedWith.description}</p>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => { rejectMatch(selectedMatchCard.id, selectedMatchCard.myApplicationId, selectedMatchCard.matchedWith.id); setSelectedMatchCard(null); }}
+                  disabled={rejectingId === selectedMatchCard.id}
+                  className="flex-1 min-w-[120px] py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm"
+                >
+                  {rejectingId === selectedMatchCard.id ? 'Kaldırılıyor...' : 'Eşleşmeyi Kaldır'}
+                </button>
+                <button
+                  onClick={() => { if (confirm(`${selectedMatchCard.matchedWith.first_name} ${selectedMatchCard.matchedWith.last_name} engellensin mi?`)) { handleBlockFromMatches(selectedMatchCard.matchedWith); setSelectedMatchCard(null); } }}
+                  disabled={!!blockReportPending}
+                  className="px-3 py-2 rounded-lg border border-white/20 text-[var(--matchup-text-muted)] hover:text-red-400 hover:border-red-500/30 text-xs"
+                >
+                  <i className="fa-solid fa-ban mr-1" /> Engelle
+                </button>
+                <button
+                  onClick={() => setShowReportModal(selectedMatchCard.matchedWith)}
+                  disabled={!!blockReportPending}
+                  className="px-3 py-2 rounded-lg border border-white/20 text-[var(--matchup-text-muted)] hover:text-amber-400 text-xs"
+                >
+                  <i className="fa-solid fa-flag mr-1" /> Raporla
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showMatchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in" onClick={() => setShowMatchModal(null)}>
