@@ -12,7 +12,9 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    const limit = Math.min(100, Math.max(10, parseInt(searchParams.get('limit') || '50', 10)));
+    const reqLimit = parseInt(searchParams.get('limit') || '50', 10);
+    // Profiller sekmesi icin limit=5000 kullaniliyor, Matches sekmesi icin max 100
+    const limit = reqLimit > 100 ? Math.min(10000, reqLimit) : Math.min(100, Math.max(10, reqLimit));
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
