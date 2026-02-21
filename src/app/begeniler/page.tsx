@@ -132,28 +132,24 @@ export default function BegenilerPage() {
   const handleBulkMatch = async () => {
     if (!selectedCharacter || likedBy.length === 0) return;
     setBulkAction('match');
-    const list = [...likedBy];
-    let matched = 0;
-    let errors = 0;
+    const ids = likedBy.map((p) => p.id);
     try {
-      for (const profile of list) {
-        const res = await fetch('/api/like', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ toApplicationId: profile.id, characterId: selectedCharacter.id }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setLikedBy((prev) => prev.filter((p) => p.id !== profile.id));
-          setLikedByCount((c) => Math.max(0, c - 1));
-          if (data.isMatch) matched++;
-        } else if (res.status === 429) {
-          showToast('Günlük like hakkınız doldu.', 'error');
-          break;
-        } else errors++;
+      const res = await fetch('/api/like/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toApplicationIds: ids, characterId: selectedCharacter.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLikedBy([]);
+        setLikedByCount(0);
+        if ((data.matchCount ?? 0) > 0) showToast(`${data.matchCount} eşleşme oluştu!`, 'success');
+        else if ((data.processed ?? 0) > 0) showToast('Tümü beğenildi!', 'success');
+      } else if (res.status === 429) {
+        showToast(data.error || 'Günlük like hakkınız doldu.', 'error');
+      } else {
+        showToast(data.error || 'Bir hata oluştu', 'error');
       }
-      if (matched > 0) showToast(`${matched} eşleşme oluştu!`, 'success');
-      if (errors > 0) showToast(`${errors} profil işlenemedi.`, 'error');
     } catch {
       showToast('Bağlantı hatası', 'error');
     } finally {
@@ -164,18 +160,21 @@ export default function BegenilerPage() {
   const handleBulkReject = async () => {
     if (!selectedCharacter || likedBy.length === 0) return;
     setBulkAction('reject');
-    const list = [...likedBy];
+    const ids = likedBy.map((p) => p.id);
     try {
-      await Promise.all(list.map((profile) =>
-        fetch('/api/dislike', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ toApplicationId: profile.id, characterId: selectedCharacter.id }),
-        })
-      ));
-      setLikedBy([]);
-      setLikedByCount(0);
-      showToast(`${list.length} profil reddedildi.`, 'success');
+      const res = await fetch('/api/dislike/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toApplicationIds: ids, characterId: selectedCharacter.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLikedBy([]);
+        setLikedByCount(0);
+        showToast(`${data.processed ?? ids.length} profil reddedildi.`, 'success');
+      } else {
+        showToast(data.error || 'Bir hata oluştu', 'error');
+      }
     } catch {
       showToast('Bağlantı hatası', 'error');
     } finally {

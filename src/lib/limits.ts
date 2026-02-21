@@ -134,6 +134,28 @@ export async function consumeLikeSlot(applicationId: string): Promise<{ ok: bool
   return { ok: true, remaining: limit - newUsed, resetAt: resetAt.toISOString() };
 }
 
+/** Toplu like için N slot tüket. Dönen consumed kadar like eklenebilir. */
+export async function consumeLikeSlots(
+  applicationId: string,
+  count: number
+): Promise<{ ok: boolean; consumed: number; remaining?: number; resetAt?: string }> {
+  if (count <= 0) return { ok: true, consumed: 0 };
+  const limit = await getDailyLimit(applicationId);
+  const { used, resetAt } = await getOrResetDaily(applicationId);
+  const available = Math.max(0, limit - used);
+  const consumed = Math.min(count, available);
+  if (consumed === 0) {
+    return { ok: false, consumed: 0, remaining: 0, resetAt: resetAt.toISOString() };
+  }
+  const newUsed = used + consumed;
+  await supabase.from('daily_likes').upsert({
+    application_id: applicationId,
+    likes_used_since_reset: newUsed,
+    reset_at: resetAt.toISOString(),
+  }, { onConflict: 'application_id' });
+  return { ok: consumed === count, consumed, remaining: limit - newUsed, resetAt: resetAt.toISOString() };
+}
+
 /** Sadece bilgi (sayacı artırmadan) — paralel sorgular */
 export async function getLimitsInfo(applicationId: string): Promise<LimitsInfo> {
   // 3 bağımsız sorguyu paralel çalıştır (eskiden 5 sequential)
