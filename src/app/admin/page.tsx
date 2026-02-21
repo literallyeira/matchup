@@ -25,7 +25,7 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'referrals' | 'bug-reports' | 'job-applications' | 'partners'>('applications');
+    const [activeTab, setActiveTab] = useState<'stats' | 'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'referrals' | 'bug-reports' | 'job-applications' | 'partners'>('stats');
     const [subModal, setSubModal] = useState<{ appId: string; name: string; currentTier: string } | null>(null);
     const [subTier, setSubTier] = useState('free');
     const [subDays, setSubDays] = useState(7);
@@ -51,6 +51,8 @@ export default function AdminPage() {
     const [loadingPartners, setLoadingPartners] = useState(false);
     const [partnerForm, setPartnerForm] = useState({ name: '', logo_url: '', link_url: '', sort_order: 0 });
     const [partnerSubmitting, setPartnerSubmitting] = useState(false);
+    const [activeStats, setActiveStats] = useState<{ todayActive: number; yesterdayActive: number; weekActive: number; record: number } | null>(null);
+    const [loadingActiveStats, setLoadingActiveStats] = useState(false);
 
     // Filters
     const [filterGender, setFilterGender] = useState('');
@@ -578,6 +580,25 @@ export default function AdminPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
 
+    const fetchActiveStats = async () => {
+        setLoadingActiveStats(true);
+        try {
+            const res = await fetch('/api/admin/active-stats', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setActiveStats(data);
+            } else setActiveStats(null);
+        } catch { setActiveStats(null); }
+        finally { setLoadingActiveStats(false); }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'stats' && isAuthenticated) fetchActiveStats();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
     const getSubLabel = (tier: string) => {
         if (tier === 'plus') return 'MatchUp+';
         if (tier === 'pro') return 'MatchUp Pro';
@@ -807,7 +828,7 @@ export default function AdminPage() {
                             {testMode ? 'Test Modu: Açık' : 'Test Modu: Kapalı'}
                         </button>
                         <button
-                            onClick={() => { fetchApplications(); fetchMatches(); fetchAllMatchesForApps(); fetchLinkStats(); fetchReferralStats(); if (activeTab === 'payments') { fetchPaymentStats(); } }}
+                            onClick={() => { fetchApplications(); fetchMatches(); fetchAllMatchesForApps(); fetchLinkStats(); fetchReferralStats(); if (activeTab === 'payments') { fetchPaymentStats(); } if (activeTab === 'stats') { fetchActiveStats(); } }}
                             className="btn-secondary"
                         >
                             <i className="fa-solid fa-rotate-right mr-2"></i>Yenile
@@ -858,6 +879,15 @@ export default function AdminPage() {
 
                 {/* Tabs */}
                 <div className="flex gap-4 mb-6 animate-fade-in flex-wrap">
+                    <button
+                        onClick={() => setActiveTab('stats')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'stats'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-chart-line mr-2"></i>İstatistik
+                    </button>
                     <button
                         onClick={() => setActiveTab('applications')}
                         className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'applications'
@@ -940,6 +970,41 @@ export default function AdminPage() {
                         <i className="fa-solid fa-handshake mr-2"></i>Partnerler ({partnersList.length})
                     </button>
                 </div>
+
+                {activeTab === 'stats' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-users mr-2 text-emerald-400"></i>Çevrimiçi İstatistikleri</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-6">Bugün / dün / bu hafta çevrimiçi olan profil sayıları (last_active_at bazlı). Rekor kaydedilir.</p>
+                            {loadingActiveStats ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : activeStats ? (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center">
+                                        <p className="text-2xl font-bold text-emerald-400">{activeStats.todayActive}</p>
+                                        <p className="text-xs text-[var(--matchup-text-muted)]">Bugün çevrimiçi</p>
+                                    </div>
+                                    <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-center">
+                                        <p className="text-2xl font-bold text-blue-400">{activeStats.yesterdayActive}</p>
+                                        <p className="text-xs text-[var(--matchup-text-muted)]">Dün çevrimiçi</p>
+                                    </div>
+                                    <div className="p-4 rounded-xl bg-violet-500/10 border border-violet-500/30 text-center">
+                                        <p className="text-2xl font-bold text-violet-400">{activeStats.weekActive}</p>
+                                        <p className="text-xs text-[var(--matchup-text-muted)]">Bu hafta çevrimiçi</p>
+                                    </div>
+                                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
+                                        <p className="text-2xl font-bold text-amber-400">{activeStats.record}</p>
+                                        <p className="text-xs text-[var(--matchup-text-muted)]">Rekor (tek gün)</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-[var(--matchup-text-muted)] py-8 text-center">Veri yüklenemedi.</p>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {activeTab === 'applications' && (
                     <>
