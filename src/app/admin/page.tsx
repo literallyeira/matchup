@@ -107,7 +107,7 @@ export default function AdminPage() {
     };
 
     const getAdminName = () => {
-        return (session?.user as any)?.username || (session?.user as any)?.name || '';
+        return (session?.user as any)?.username || (session?.user as any)?.name || (typeof window !== 'undefined' ? localStorage.getItem('adminUcpName') : null) || '';
     };
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -622,10 +622,15 @@ export default function AdminPage() {
 
     useEffect(() => {
         const savedPassword = localStorage.getItem('adminPassword');
-        const ucp = (session?.user as any)?.username || (session?.user as any)?.name;
+        const ucp = (session?.user as any)?.username || (session?.user as any)?.name || localStorage.getItem('adminUcpName');
         if (savedPassword && ucp) {
             setPassword(savedPassword);
             setIsAuthenticated(true);
+            // Eski girenler tekrar girince de nick kaydedilsin
+            fetch('/api/admin/log-login', {
+                method: 'POST',
+                headers: { Authorization: savedPassword, 'X-Admin-Name': ucp }
+            }).catch(() => {});
             fetchApplications(savedPassword);
             fetchMatches(savedPassword);
             fetchAllMatchesForApps(savedPassword);
