@@ -832,6 +832,13 @@ export default function AdminPage() {
                             <i className="fa-solid fa-flask"></i>
                             {testMode ? 'Test Modu: Açık' : 'Test Modu: Kapalı'}
                         </button>
+                        <Link
+                            href="/muhasebe"
+                            className="px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2 bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]"
+                        >
+                            <i className="fa-solid fa-calculator"></i>
+                            Muhasebe
+                        </Link>
                         <button
                             onClick={() => { fetchApplications(); fetchMatches(); fetchAllMatchesForApps(); fetchLinkStats(); fetchReferralStats(); if (activeTab === 'payments') { fetchPaymentStats(); } if (activeTab === 'stats') { fetchActiveStats(); } }}
                             className="btn-secondary"
