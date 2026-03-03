@@ -115,11 +115,9 @@ function HomeContent() {
   const [limits, setLimits] = useState<{ tier: string; dailyLimit: number; remaining: number; resetAt: string; boostExpiresAt: string | null; subscriptionExpiresAt?: string | null; undoRemaining?: number; undoResetAt?: string } | null>(null);
   const [lastDislikedProfile, setLastDislikedProfile] = useState<Application | null>(null);
   const [profileCompleteness, setProfileCompleteness] = useState<number | null>(null);
-  const [showShop, setShowShop] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [referralCount, setReferralCount] = useState<number | null>(null);
-  const [checkoutPending, setCheckoutPending] = useState<string | null>(null);
   const [likedByCount, setLikedByCount] = useState<number | null>(null);
   const [isDeletingProfile, setIsDeletingProfile] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -623,28 +621,6 @@ function HomeContent() {
     }
   };
 
-  const handleCheckout = async (product: 'plus' | 'pro' | 'boost') => {
-    if (!selectedCharacter) return;
-    setCheckoutPending(product);
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product, characterId: selectedCharacter.id }),
-      });
-      const data = await res.json();
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-        return;
-      }
-      showToast(data.error || 'Ödeme başlatılamadı', 'error');
-    } catch {
-      showToast('Bağlantı hatası', 'error');
-    } finally {
-      setCheckoutPending(null);
-    }
-  };
-
   const getGenderLabel = (v: string) => ({ erkek: 'Erkek', kadin: 'Kadın' }[v] || v);
   const getPreferenceLabel = (v: string) =>
     ({ heteroseksuel: 'Heteroseksüel', homoseksuel: 'Homoseksüel', biseksuel: 'Biseksüel' }[v] || v);
@@ -979,9 +955,9 @@ function HomeContent() {
             <Link href="/begeniler" className="btn-secondary text-sm flex-1 whitespace-nowrap text-center">
               <i className="fa-solid fa-eye mr-1.5" /> Beğenenler{likedByCount != null && likedByCount > 0 ? ` (${likedByCount})` : ''}
             </Link>
-            <button onClick={() => setShowShop(true)} className="btn-secondary text-sm flex-1 whitespace-nowrap">
+            <Link href="/magaza" className="btn-secondary text-sm flex-1 whitespace-nowrap text-center">
               <i className="fa-solid fa-store mr-1.5" /> Mağaza
-            </button>
+            </Link>
             <button
               onClick={async () => {
                 setShowReferralModal(true);
@@ -1362,47 +1338,6 @@ function HomeContent() {
               <button onClick={() => handleReport(showReportModal, reportReason)} disabled={!!blockReportPending} className="btn-primary flex-1">
                 {blockReportPending ? 'Gönderiliyor...' : 'Gönder'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showShop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in overflow-y-auto" onClick={() => setShowShop(false)}>
-          <div className="card max-w-md w-full my-8 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Mağaza</h2>
-              <button onClick={() => setShowShop(false)} className="text-[var(--matchup-text-muted)] hover:text-white text-2xl">&times;</button>
-            </div>
-            <p className="text-[var(--matchup-text-muted)] text-sm mb-6">Özellikler ve fiyatlar aşağıda. Ödeme GTA World banka ağ geçidi ile güvenli şekilde yapılır.</p>
-
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)]">
-                <h3 className="font-bold text-[var(--matchup-primary)] mb-1">MatchUp+</h3>
-                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">1 haftalık. Günlük 20 like/dislike hakkı (normal 10). 24 saatte bir yenilenir.</p>
-                <p className="text-lg font-bold mb-2">5.000$</p>
-                <button onClick={() => handleCheckout('plus')} disabled={!!checkoutPending} className="btn-primary text-sm py-2">Satın Al</button>
-              </div>
-              <div className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-primary)]/50">
-                <h3 className="font-bold text-[var(--matchup-primary)] mb-1">MatchUp Pro</h3>
-                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">1 haftalık. Sınırsız like/dislike. Seni beğenenleri görebilirsin.</p>
-                <p className="text-lg font-bold mb-1">İlk alımlara özel 16.500$</p>
-                <p className="text-xs text-[var(--matchup-text-muted)] mb-2">(Normal 20.000$)</p>
-                <button onClick={() => handleCheckout('pro')} disabled={!!checkoutPending} className="btn-primary text-sm py-2">Satın Al</button>
-              </div>
-              <div className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)]">
-                <h3 className="font-bold text-[var(--matchup-primary)] mb-1">Beni Öne Çıkart</h3>
-                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">24 saat boyunca uyumlu herkeste ilk 10'da görünürsün.</p>
-                <p className="text-lg font-bold mb-2">5.000$</p>
-                <button onClick={() => handleCheckout('boost')} disabled={!!checkoutPending} className="btn-primary text-sm py-2">Satın Al</button>
-              </div>
-              <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-                <h3 className="font-bold text-emerald-400 mb-1"><i className="fa-solid fa-gift mr-2" />Ücretsiz Pro</h3>
-                <p className="text-sm text-[var(--matchup-text-muted)] mb-2">20 yeni karakteri davet et, 1 ay MatchUp Pro kazan! Sadece application'ı (profili) olmayan karakterler sayılır.</p>
-                <button onClick={async () => { setShowShop(false); setShowReferralModal(true); try { const r = await fetch('/api/me/referral-code'); const d = await r.json(); if (r.ok) { if (d.inviteLink) setInviteLink(d.inviteLink); setReferralCount(typeof d.referralCount === 'number' ? d.referralCount : 0); } } catch { /* ignore */ } }} className="btn-secondary text-sm py-2 w-full">
-                  <i className="fa-solid fa-user-plus mr-2" />Davet Linkimi Al
-                </button>
-              </div>
             </div>
           </div>
         </div>

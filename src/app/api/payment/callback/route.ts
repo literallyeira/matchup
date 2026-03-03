@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     if (orderId) {
       const { data } = await supabase
         .from('pending_orders')
-        .select('application_id, product, amount, gateway_token, order_id')
+        .select('application_id, product, amount, gateway_token, order_id, discount_code_id')
         .eq('order_id', orderId)
         .single();
       order = data;
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       console.log('Payment callback: cookie ile sipariş bulunamadı, token ile deneniyor');
       const { data } = await supabase
         .from('pending_orders')
-        .select('application_id, product, amount, gateway_token, order_id')
+        .select('application_id, product, amount, gateway_token, order_id, discount_code_id')
         .eq('gateway_token', urlToken)
         .single();
       order = data;
@@ -154,6 +154,14 @@ async function processPayment(
     gateway_token: token,
     gateway_response: data,
   });
+
+  const discountCodeId = order.discount_code_id as string | null | undefined;
+  if (discountCodeId) {
+    await supabase.from('discount_redemptions').insert({
+      discount_code_id: discountCodeId,
+      application_id: appId,
+    });
+  }
 
   await supabase
     .from('pending_orders')

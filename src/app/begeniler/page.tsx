@@ -303,7 +303,7 @@ export default function BegenilerPage() {
             <i className="fa-solid fa-heart text-5xl text-[var(--matchup-primary)] mb-4" />
             <h3 className="text-lg font-bold mb-1">{likedByCount} kişi seni beğendi</h3>
             <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Kim olduklarını görmek için MatchUp Pro&apos;ya geç.</p>
-            <Link href="/" className="btn-primary inline-flex items-center gap-2">
+            <Link href="/magaza" className="btn-primary inline-flex items-center gap-2">
               <i className="fa-solid fa-crown" /> Mağaza&apos;ya Git
             </Link>
           </div>

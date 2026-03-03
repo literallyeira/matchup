@@ -25,7 +25,7 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'stats' | 'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'referrals' | 'bug-reports' | 'job-applications' | 'partners'>('stats');
+    const [activeTab, setActiveTab] = useState<'stats' | 'applications' | 'matches' | 'subscriptions' | 'payments' | 'ads' | 'discount-codes' | 'referrals' | 'bug-reports' | 'job-applications' | 'partners'>('stats');
     const [subModal, setSubModal] = useState<{ appId: string; name: string; currentTier: string } | null>(null);
     const [subTier, setSubTier] = useState('free');
     const [subDays, setSubDays] = useState(7);
@@ -51,6 +51,10 @@ export default function AdminPage() {
     const [loadingPartners, setLoadingPartners] = useState(false);
     const [partnerForm, setPartnerForm] = useState({ name: '', logo_url: '', link_url: '', sort_order: 0 });
     const [partnerSubmitting, setPartnerSubmitting] = useState(false);
+    const [discountCodes, setDiscountCodes] = useState<Array<{ id: string; code: string; discount_type: string; discount_value: number; valid_from: string | null; valid_until: string | null; created_at: string }>>([]);
+    const [loadingDiscountCodes, setLoadingDiscountCodes] = useState(false);
+    const [discountForm, setDiscountForm] = useState({ code: '', discount_type: 'percent' as 'percent' | 'fixed', discount_value: 10, valid_until: '' });
+    const [discountSubmitting, setDiscountSubmitting] = useState(false);
     const [activeStats, setActiveStats] = useState<{ todayActive: number; yesterdayActive: number; weekActive: number; currentActive: number; record: number; dailyHistory?: Array<{ stat_date: string; active_count: number }> } | null>(null);
     const [loadingActiveStats, setLoadingActiveStats] = useState(false);
 
@@ -354,6 +358,20 @@ export default function AdminPage() {
         finally { setLoadingAds(false); }
     };
 
+    const fetchDiscountCodes = async () => {
+        setLoadingDiscountCodes(true);
+        try {
+            const res = await fetch('/api/admin/discount-codes', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setDiscountCodes(Array.isArray(data) ? data : []);
+            } else setDiscountCodes([]);
+        } catch { setDiscountCodes([]); }
+        finally { setLoadingDiscountCodes(false); }
+    };
+
     const fetchLinkStats = async () => {
         setLoadingLinkStats(true);
         try {
@@ -552,6 +570,11 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (activeTab === 'ads' && isAuthenticated) fetchAdsList();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, isAuthenticated]);
+
+    useEffect(() => {
+        if (activeTab === 'discount-codes' && isAuthenticated) fetchDiscountCodes();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, isAuthenticated]);
 
@@ -944,6 +967,15 @@ export default function AdminPage() {
                             }`}
                     >
                         <i className="fa-solid fa-rectangle-ad mr-2"></i>Reklamlar
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('discount-codes')}
+                        className={`px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === 'discount-codes'
+                            ? 'bg-[var(--matchup-primary)] text-white'
+                            : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                            }`}
+                    >
+                        <i className="fa-solid fa-tag mr-2"></i>İndirim Kodları ({discountCodes.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('referrals')}
@@ -1610,6 +1642,124 @@ export default function AdminPage() {
                                             </div>
                                         );
                                     })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'discount-codes' && (
+                    <div className="space-y-6">
+                        <div className="card animate-fade-in">
+                            <h2 className="text-lg font-semibold mb-4"><i className="fa-solid fa-tag mr-2 text-amber-400"></i>İndirim Kodları</h2>
+                            <p className="text-[var(--matchup-text-muted)] text-sm mb-4">Kullanıcılar mağazada bu kodları girebilir. Her kullanıcı bir koddan sadece bir kez yararlanır.</p>
+                            <div className="p-4 rounded-xl bg-[var(--matchup-bg-input)] border border-[var(--matchup-border)] mb-6">
+                                <h3 className="font-medium mb-3">Yeni kod ekle</h3>
+                                <div className="flex flex-wrap gap-3 items-end">
+                                    <div>
+                                        <label className="block text-xs text-[var(--matchup-text-muted)] mb-1">Kod</label>
+                                        <input
+                                            type="text"
+                                            value={discountForm.code}
+                                            onChange={(e) => setDiscountForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+                                            placeholder="Örn: YILBASI20"
+                                            className="form-input w-36"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-[var(--matchup-text-muted)] mb-1">Tip</label>
+                                        <select
+                                            value={discountForm.discount_type}
+                                            onChange={(e) => setDiscountForm((f) => ({ ...f, discount_type: e.target.value as 'percent' | 'fixed' }))}
+                                            className="form-input w-28"
+                                        >
+                                            <option value="percent">Yüzde (%)</option>
+                                            <option value="fixed">Sabit ($)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-[var(--matchup-text-muted)] mb-1">{discountForm.discount_type === 'percent' ? 'Yüzde (1-100)' : 'İndirim ($)'}</label>
+                                        <input
+                                            type="number"
+                                            min={discountForm.discount_type === 'percent' ? 1 : 0}
+                                            max={discountForm.discount_type === 'percent' ? 100 : undefined}
+                                            value={discountForm.discount_value}
+                                            onChange={(e) => setDiscountForm((f) => ({ ...f, discount_value: parseInt(e.target.value, 10) || 0 }))}
+                                            className="form-input w-24"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-[var(--matchup-text-muted)] mb-1">Geçerlilik bitiş (opsiyonel)</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={discountForm.valid_until}
+                                            onChange={(e) => setDiscountForm((f) => ({ ...f, valid_until: e.target.value }))}
+                                            className="form-input w-48"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (!discountForm.code.trim()) return;
+                                            setDiscountSubmitting(true);
+                                            try {
+                                                const res = await fetch('/api/admin/discount-codes', {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/json',
+                                                        Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}`,
+                                                    },
+                                                    body: JSON.stringify({
+                                                        code: discountForm.code.trim(),
+                                                        discount_type: discountForm.discount_type,
+                                                        discount_value: discountForm.discount_value,
+                                                        valid_until: discountForm.valid_until || null,
+                                                    }),
+                                                });
+                                                const data = await res.json();
+                                                if (res.ok) {
+                                                    setDiscountCodes((prev) => [data, ...prev]);
+                                                    setDiscountForm({ code: '', discount_type: 'percent', discount_value: 10, valid_until: '' });
+                                                } else alert(data.error || 'Hata');
+                                            } catch { alert('İstek başarısız'); }
+                                            finally { setDiscountSubmitting(false); }
+                                        }}
+                                        disabled={discountSubmitting || !discountForm.code.trim()}
+                                        className="btn-primary text-sm py-2"
+                                    >
+                                        {discountSubmitting ? 'Ekleniyor...' : 'Ekle'}
+                                    </button>
+                                </div>
+                            </div>
+                            {loadingDiscountCodes ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin w-10 h-10 border-4 border-[var(--matchup-primary)] border-t-transparent rounded-full" />
+                                </div>
+                            ) : discountCodes.length === 0 ? (
+                                <p className="text-[var(--matchup-text-muted)] py-6 text-center">Henüz indirim kodu yok.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead>
+                                            <tr className="border-b border-[var(--matchup-border)]">
+                                                <th className="pb-3 pr-4 font-semibold">Kod</th>
+                                                <th className="pb-3 pr-4 font-semibold">Tip</th>
+                                                <th className="pb-3 pr-4 font-semibold">Değer</th>
+                                                <th className="pb-3 pr-4 font-semibold">Bitiş</th>
+                                                <th className="pb-3 pr-4 font-semibold">Oluşturulma</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {discountCodes.map((dc) => (
+                                                <tr key={dc.id} className="border-b border-[var(--matchup-border)]/50">
+                                                    <td className="py-3 pr-4 font-mono text-[var(--matchup-primary)]">{dc.code}</td>
+                                                    <td className="py-3 pr-4">{dc.discount_type === 'percent' ? 'Yüzde' : 'Sabit'}</td>
+                                                    <td className="py-3 pr-4">{dc.discount_type === 'percent' ? `%${dc.discount_value}` : `$${dc.discount_value}`}</td>
+                                                    <td className="py-3 pr-4 text-[var(--matchup-text-muted)]">{dc.valid_until ? formatDate(dc.valid_until) : '—'}</td>
+                                                    <td className="py-3 pr-4 text-[var(--matchup-text-muted)]">{formatDate(dc.created_at)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
                         </div>

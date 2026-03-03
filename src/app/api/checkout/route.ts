@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { validateDiscountCode } from '@/lib/discount';
 
 function generateOrderId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
@@ -12,7 +13,7 @@ const GATEWAY_BASE = 'https://banking-tr.gta.world';
 
 const PRODUCTS: Record<string, { price: number }> = {
   plus: { price: 5000 },
-  pro: { price: 16500 },
+  pro: { price: 15000 },
   boost: { price: 5000 },
   ad_left: { price: 25000 },
   ad_right: { price: 25000 },
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { product, characterId, adImageUrl, adLinkUrl } = await request.json();
+    const { product, characterId, adImageUrl, adLinkUrl, discountCode } = await request.json();
     const validProducts = ['plus', 'pro', 'boost', 'ad_left', 'ad_right'];
     if (!product || !validProducts.includes(product)) {
       return NextResponse.json({ error: 'Geçersiz ürün' }, { status: 400 });
@@ -70,14 +71,25 @@ export async function POST(request: Request) {
       appId = myApp.id;
     }
 
-    const prod = PRODUCTS[product];
+    let amount = PRODUCTS[product].price;
+    let discountCodeId: string | null = null;
+
+    if (discountCode && appId) {
+      const result = await validateDiscountCode(discountCode, product, appId);
+      if (result.valid) {
+        amount = result.finalPrice;
+        discountCodeId = result.discountCodeId;
+      }
+    }
+
     const orderId = generateOrderId();
 
     const { error: insertError } = await supabase.from('pending_orders').insert({
       order_id: orderId,
       application_id: appId,
       product,
-      amount: prod.price,
+      amount,
+      ...(discountCodeId && { discount_code_id: discountCodeId }),
     });
 
     if (insertError) {
@@ -104,7 +116,7 @@ export async function POST(request: Request) {
 
     // Token akışı: önce token üret, sonra /gateway/{token} ile yönlendir (query string 404 veriyor)
     const tokenRes = await fetch(
-      `${GATEWAY_BASE}/gateway_token/generateToken?price=${prod.price}&type=0`,
+      `${GATEWAY_BASE}/gateway_token/generateToken?price=${amount}&type=0`,
       { headers: { Authorization: `Bearer ${AUTH_KEY}` } }
     );
     if (!tokenRes.ok) {
