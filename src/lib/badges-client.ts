@@ -44,6 +44,9 @@ export function getInlineBadges(app: Application): BadgeInfo[] {
 
   const likedCount = (app as { liked_count?: number }).liked_count ?? 0;
   const matchCount = (app as { match_count?: number }).match_count ?? 0;
+  if (matchCount >= 8) {
+    badges.push({ key: 'match_addict', label: 'Match Delisi', icon: 'fa-heart-circle-bolt', colorClass: BADGE_COLORS.violet });
+  }
   if (likedCount >= 15 || matchCount >= 10) {
     badges.push({ key: 'popular', label: 'Çok beğenilen', icon: 'fa-fire', colorClass: 'bg-orange-500/20 text-orange-400' });
   } else if (likedCount >= 5 || matchCount >= 3) {

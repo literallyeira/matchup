@@ -4,27 +4,49 @@ import { getProfileCompleteness } from '@/lib/profile-completeness';
 
 type HighlightProfile = Application & {
   liked_count: number;
+  match_count: number;
   reason: string;
+  stat_label: string;
 };
 
-function getReason(app: Application, likedCount: number, completeness: number, hoursSinceActive: number): string {
-  if (likedCount >= 6) return 'Bu hafta ilgi görüyor';
+function getReason(
+  app: Application,
+  likedCount: number,
+  matchCount: number,
+  completeness: number,
+  hoursSinceActive: number
+): string {
+  if (matchCount >= 4 && matchCount >= likedCount / 2) return 'En çok eşleşenlerden';
+  if (likedCount >= 6) return 'En çok beğenilenlerden';
   if (hoursSinceActive <= 6) return 'Şu an çok aktif';
   if (completeness >= 90) return 'Profili çok dolu';
   if (app.is_verified || app.phone?.trim()) return 'Güven veren profil';
   return 'Bu hafta öne çıkan';
 }
 
-function getScore(app: Application, likedCount: number): number {
+function getStatLabel(likedCount: number, matchCount: number, hoursSinceActive: number): string {
+  if (matchCount >= 4 && matchCount >= likedCount / 2) {
+    return `${matchCount} eşleşme`;
+  }
+  if (likedCount >= 3) {
+    return `${likedCount} beğeni`;
+  }
+  if (hoursSinceActive <= 1) return 'Şimdi aktif';
+  if (hoursSinceActive <= 24) return `${Math.max(1, Math.floor(hoursSinceActive))} saat önce aktif`;
+  return 'Bu hafta aktif';
+}
+
+function getScore(app: Application, likedCount: number, matchCount: number): number {
   const completeness = getProfileCompleteness(app);
   const lastActiveAt = app.last_active_at ? new Date(app.last_active_at).getTime() : 0;
   const hoursSinceActive = lastActiveAt ? (Date.now() - lastActiveAt) / (1000 * 60 * 60) : 999;
   const activeScore = Math.max(0, 28 - hoursSinceActive * 1.5);
   const interestScore = Math.min(likedCount * 6, 36);
+  const matchScore = Math.min(matchCount * 8, 40);
   const trustScore = (app.is_verified ? 8 : 0) + (app.phone?.trim() ? 4 : 0);
   const freshnessScore = Date.now() - new Date(app.created_at).getTime() <= 7 * 24 * 60 * 60 * 1000 ? 4 : 0;
 
-  return completeness * 0.55 + activeScore + interestScore + trustScore + freshnessScore;
+  return completeness * 0.45 + activeScore + interestScore + matchScore + trustScore + freshnessScore;
 }
 
 // GET - Haftanın öne çıkan profilleri
@@ -88,14 +110,32 @@ export async function GET() {
       .gte('created_at', weekAgoIso)
       .limit(5000);
 
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('application_1_id, application_2_id')
+      .gte('created_at', weekAgoIso)
+      .limit(5000);
+
     const likeCounts: Record<string, number> = {};
     (likes ?? []).forEach((like: { to_application_id: string }) => {
       likeCounts[like.to_application_id] = (likeCounts[like.to_application_id] || 0) + 1;
     });
 
+    const candidateSet = new Set(candidateIds);
+    const matchCounts: Record<string, number> = {};
+    (matches ?? []).forEach((match: { application_1_id: string; application_2_id: string }) => {
+      if (candidateSet.has(match.application_1_id)) {
+        matchCounts[match.application_1_id] = (matchCounts[match.application_1_id] || 0) + 1;
+      }
+      if (candidateSet.has(match.application_2_id)) {
+        matchCounts[match.application_2_id] = (matchCounts[match.application_2_id] || 0) + 1;
+      }
+    });
+
     const profiles: HighlightProfile[] = (candidates as Application[])
       .map((app) => {
         const likedCount = likeCounts[app.id] || 0;
+        const matchCount = matchCounts[app.id] || 0;
         const completeness = getProfileCompleteness(app);
         const lastActiveAt = app.last_active_at ? new Date(app.last_active_at).getTime() : 0;
         const hoursSinceActive = lastActiveAt ? (now - lastActiveAt) / (1000 * 60 * 60) : 999;
@@ -103,12 +143,13 @@ export async function GET() {
         return {
           ...app,
           liked_count: likedCount,
-          reason: getReason(app, likedCount, completeness, hoursSinceActive),
-          match_count: 0,
+          match_count: matchCount,
+          reason: getReason(app, likedCount, matchCount, completeness, hoursSinceActive),
+          stat_label: getStatLabel(likedCount, matchCount, hoursSinceActive),
         };
       })
-      .filter((app) => getProfileCompleteness(app) >= 55)
-      .sort((a, b) => getScore(b, b.liked_count) - getScore(a, a.liked_count))
+      .filter((app) => getProfileCompleteness(app) >= 55 && (app.liked_count > 0 || app.match_count > 0 || app.last_active_at))
+      .sort((a, b) => getScore(b, b.liked_count, b.match_count || 0) - getScore(a, a.liked_count, a.match_count || 0))
       .slice(0, 8);
 
     return NextResponse.json(

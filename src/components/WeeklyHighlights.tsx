@@ -7,7 +7,9 @@ import { RemoteImage } from '@/components/RemoteImage';
 
 type HighlightProfile = Application & {
   liked_count?: number;
+  match_count?: number;
   reason: string;
+  stat_label?: string;
 };
 
 function formatLastActive(iso: string | null | undefined): string | null {
@@ -61,7 +63,7 @@ export function WeeklyHighlights({ maxItems = 6 }: { maxItems?: number }) {
         <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Bu Haftanın Öne Çıkanları</span>
       </div>
       <p className="text-[var(--matchup-text-muted)] text-sm mb-3">
-        En aktif, profili dolu ve bu hafta ilgi gören profiller.
+        En çok beğenilen, eşleşen ve aktif kalan profiller.
       </p>
 
       <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
@@ -127,12 +129,10 @@ export function WeeklyHighlights({ maxItems = 6 }: { maxItems?: number }) {
                     )}
                     <div className="flex items-center justify-between gap-2 text-xs text-[var(--matchup-text-muted)]">
                       <span>{formatLastActive(profile.last_active_at) || 'Bu hafta aktif'}</span>
-                      {(profile.liked_count || 0) > 0 && (
-                        <span className="text-amber-300 whitespace-nowrap">
-                          <i className="fa-solid fa-fire mr-1" />
-                          İlgi görüyor
-                        </span>
-                      )}
+                      <span className="whitespace-nowrap text-amber-300">
+                        <i className={`fa-solid ${(profile.match_count || 0) >= (profile.liked_count || 0) ? 'fa-heart-circle-bolt' : 'fa-fire'} mr-1`} />
+                        {profile.stat_label || 'Öne çıkan'}
+                      </span>
                     </div>
                   </div>
                 </article>
