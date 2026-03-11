@@ -18,7 +18,7 @@ export function RemoteImage({ src, alt, onError, unoptimized, ...props }: Remote
   const candidateIndex = candidateIndices[src] || 0;
 
   const currentSrc = candidates[candidateIndex] || src;
-  const shouldBypassOptimizer = unoptimized ?? isImgur || currentSrc.startsWith('/api/image-proxy');
+  const shouldBypassOptimizer = unoptimized ?? (isImgur || currentSrc.startsWith('/api/image-proxy'));
 
   return (
     <Image
