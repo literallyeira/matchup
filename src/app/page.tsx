@@ -12,6 +12,7 @@ import { isCompatible } from '@/lib/compatibility';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
 import { PhotoSlider } from '@/components/PhotoSlider';
 import { getStoredRef, clearStoredRef } from '@/components/RefTracker';
+import { WeeklyHighlights } from '@/components/WeeklyHighlights';
 
 interface Character {
   id: number;
@@ -639,29 +640,34 @@ function HomeContent() {
   if (!effectiveSession) {
     return (
       <main className="flex items-center justify-center px-4 py-20">
-        <div className="card max-w-md w-full text-center animate-fade-in">
-          <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
-            <Image src="/matchup_logo.png" alt="MatchUp" width={220} height={60} className="mx-auto mb-6" priority />
-          </Link>
-          <p className="text-[var(--matchup-text-muted)] text-lg mb-8">
-            <i className="fa-solid fa-heart text-[var(--matchup-primary)] mr-2" />
-            Hayatının aşkını bulmaya bir adım kaldı!
-          </p>
-          {testMode ? (
-            <button onClick={() => setTestModeLoggedIn(true)} className="btn-primary flex items-center justify-center gap-3">
-              <i className="fa-solid fa-flask" /> Test Kullanıcısı Olarak Giriş Yap
-            </button>
-          ) : (
-            <button onClick={() => signIn('gtaw')} className="btn-primary flex items-center justify-center gap-3">
-              <i className="fa-solid fa-right-to-bracket" /> GTA World ile Giriş Yap
-            </button>
-          )}
-          <p className="text-[var(--matchup-text-muted)] text-sm mt-6">Giriş yaparak gizlilik politikamızı kabul etmiş olursunuz.</p>
-          {testMode && (
-            <div className="mt-6 p-3 bg-yellow-500/20 rounded-xl border border-yellow-500/50">
-              <p className="text-yellow-400 text-sm"><i className="fa-solid fa-flask mr-2" /> Test Modu Aktif</p>
-            </div>
-          )}
+        <div className="max-w-5xl w-full">
+          <div className="card max-w-md w-full text-center animate-fade-in mx-auto">
+            <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
+              <Image src="/matchup_logo.png" alt="MatchUp" width={220} height={60} className="mx-auto mb-6" priority />
+            </Link>
+            <p className="text-[var(--matchup-text-muted)] text-lg mb-8">
+              <i className="fa-solid fa-heart text-[var(--matchup-primary)] mr-2" />
+              Hayatının aşkını bulmaya bir adım kaldı!
+            </p>
+            {testMode ? (
+              <button onClick={() => setTestModeLoggedIn(true)} className="btn-primary flex items-center justify-center gap-3">
+                <i className="fa-solid fa-flask" /> Test Kullanıcısı Olarak Giriş Yap
+              </button>
+            ) : (
+              <button onClick={() => signIn('gtaw')} className="btn-primary flex items-center justify-center gap-3">
+                <i className="fa-solid fa-right-to-bracket" /> GTA World ile Giriş Yap
+              </button>
+            )}
+            <p className="text-[var(--matchup-text-muted)] text-sm mt-6">Giriş yaparak gizlilik politikamızı kabul etmiş olursunuz.</p>
+            {testMode && (
+              <div className="mt-6 p-3 bg-yellow-500/20 rounded-xl border border-yellow-500/50">
+                <p className="text-yellow-400 text-sm"><i className="fa-solid fa-flask mr-2" /> Test Modu Aktif</p>
+              </div>
+            )}
+          </div>
+          <div className="mt-8">
+            <WeeklyHighlights maxItems={5} />
+          </div>
         </div>
       </main>
     );
@@ -1006,6 +1012,8 @@ function HomeContent() {
 
         {activeTab === 'discover' && (
           <div className="min-h-[500px] flex flex-col items-center justify-center">
+            <WeeklyHighlights />
+
             {/* Günün Profili - eşleşmiş kişileri gösterme */}
             {spotlight && userApplication && isCompatible(userApplication.gender, userApplication.sexual_preference, spotlight.gender, spotlight.sexual_preference) && !isLoadingPossible && currentCard && spotlight.id !== currentCard.id && !matches.some(m => m.matchedWith.id === spotlight.id) && (
               <div className="w-full mb-4 animate-fade-in">
