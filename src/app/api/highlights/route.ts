@@ -6,7 +6,13 @@ type HighlightProfile = Application & {
   liked_count: number;
   match_count: number;
   reason: string;
-  stat_label: string;
+};
+
+type HighlightSection = {
+  key: 'liked' | 'matched' | 'active';
+  title: string;
+  icon: string;
+  profiles: HighlightProfile[];
 };
 
 function getReason(
@@ -24,18 +30,6 @@ function getReason(
   return 'Bu hafta öne çıkan';
 }
 
-function getStatLabel(likedCount: number, matchCount: number, hoursSinceActive: number): string {
-  if (matchCount >= 4 && matchCount >= likedCount / 2) {
-    return `${matchCount} eşleşme`;
-  }
-  if (likedCount >= 3) {
-    return `${likedCount} beğeni`;
-  }
-  if (hoursSinceActive <= 1) return 'Şimdi aktif';
-  if (hoursSinceActive <= 24) return `${Math.max(1, Math.floor(hoursSinceActive))} saat önce aktif`;
-  return 'Bu hafta aktif';
-}
-
 function getScore(app: Application, likedCount: number, matchCount: number): number {
   const completeness = getProfileCompleteness(app);
   const lastActiveAt = app.last_active_at ? new Date(app.last_active_at).getTime() : 0;
@@ -47,6 +41,11 @@ function getScore(app: Application, likedCount: number, matchCount: number): num
   const freshnessScore = Date.now() - new Date(app.created_at).getTime() <= 7 * 24 * 60 * 60 * 1000 ? 4 : 0;
 
   return completeness * 0.45 + activeScore + interestScore + matchScore + trustScore + freshnessScore;
+}
+
+function getHoursSinceActive(app: Application, now: number): number {
+  const lastActiveAt = app.last_active_at ? new Date(app.last_active_at).getTime() : 0;
+  return lastActiveAt ? (now - lastActiveAt) / (1000 * 60 * 60) : 999;
 }
 
 // GET - Haftanın öne çıkan profilleri
@@ -137,28 +136,58 @@ export async function GET() {
         const likedCount = likeCounts[app.id] || 0;
         const matchCount = matchCounts[app.id] || 0;
         const completeness = getProfileCompleteness(app);
-        const lastActiveAt = app.last_active_at ? new Date(app.last_active_at).getTime() : 0;
-        const hoursSinceActive = lastActiveAt ? (now - lastActiveAt) / (1000 * 60 * 60) : 999;
+        const hoursSinceActive = getHoursSinceActive(app, now);
 
         return {
           ...app,
           liked_count: likedCount,
           match_count: matchCount,
           reason: getReason(app, likedCount, matchCount, completeness, hoursSinceActive),
-          stat_label: getStatLabel(likedCount, matchCount, hoursSinceActive),
         };
       })
       .filter((app) => getProfileCompleteness(app) >= 55 && (app.liked_count > 0 || app.match_count > 0 || app.last_active_at))
-      .sort((a, b) => getScore(b, b.liked_count, b.match_count || 0) - getScore(a, a.liked_count, a.match_count || 0))
-      .slice(0, 8);
+      .sort((a, b) => getScore(b, b.liked_count, b.match_count || 0) - getScore(a, a.liked_count, a.match_count || 0));
+
+    const sections: HighlightSection[] = [
+      {
+        key: 'liked' as const,
+        title: 'En Çok Beğenilenler',
+        icon: 'fa-fire',
+        profiles: [...profiles]
+          .sort((a, b) => (b.liked_count || 0) - (a.liked_count || 0) || getScore(b, b.liked_count, b.match_count || 0) - getScore(a, a.liked_count, a.match_count || 0))
+          .filter((profile) => (profile.liked_count || 0) > 0)
+          .slice(0, 4)
+          .map((profile) => ({ ...profile, reason: 'Bu hafta en çok beğenilenlerden' })),
+      },
+      {
+        key: 'matched' as const,
+        title: 'En Çok Eşleşenler',
+        icon: 'fa-heart-circle-bolt',
+        profiles: [...profiles]
+          .sort((a, b) => (b.match_count || 0) - (a.match_count || 0) || (b.liked_count || 0) - (a.liked_count || 0))
+          .filter((profile) => (profile.match_count || 0) > 0)
+          .slice(0, 4)
+          .map((profile) => ({ ...profile, reason: 'Bu hafta en çok eşleşenlerden' })),
+      },
+      {
+        key: 'active' as const,
+        title: 'Şu An Çok Aktifler',
+        icon: 'fa-bolt',
+        profiles: [...profiles]
+          .sort((a, b) => getHoursSinceActive(a, now) - getHoursSinceActive(b, now))
+          .filter((profile) => getHoursSinceActive(profile, now) <= 48)
+          .slice(0, 4)
+          .map((profile) => ({ ...profile, reason: 'Son saatlerde en aktif kalanlardan' })),
+      },
+    ].filter((section) => section.profiles.length > 0);
 
     return NextResponse.json(
-      { enabled: true, profiles },
+      { enabled: true, sections },
       { headers: { 'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=1800' } }
     );
   } catch (error) {
     console.error('Highlights error:', error);
-    return NextResponse.json({ enabled: false, profiles: [] }, { status: 200 });
+    return NextResponse.json({ enabled: false, sections: [] }, { status: 200 });
   }
 }
 
