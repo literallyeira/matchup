@@ -53,8 +53,8 @@ export function WeeklyHighlights({ maxItems = 6 }: { maxItems?: number }) {
               }))
             : [];
           setSections(fetchedSections);
-          if (fetchedSections.length > 0 && !fetchedSections.find((s) => s.key === activeTab)?.profiles.length) {
-            const firstWithProfiles = fetchedSections.find((s) => s.profiles.length > 0);
+          if (fetchedSections.length > 0 && !fetchedSections.find((s: HighlightSection) => s.key === activeTab)?.profiles.length) {
+            const firstWithProfiles = fetchedSections.find((s: HighlightSection) => s.profiles.length > 0);
             if (firstWithProfiles) setActiveTab(firstWithProfiles.key);
           }
         }
