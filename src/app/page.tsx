@@ -12,6 +12,7 @@ import { isCompatible } from '@/lib/compatibility';
 import { getProfileCompleteness } from '@/lib/profile-completeness';
 import { PhotoSlider } from '@/components/PhotoSlider';
 import { getStoredRef, clearStoredRef } from '@/components/RefTracker';
+import { RemoteImage } from '@/components/RemoteImage';
 import { WeeklyHighlights } from '@/components/WeeklyHighlights';
 
 interface Character {
@@ -1024,7 +1025,7 @@ function HomeContent() {
                 <div className="relative rounded-2xl overflow-hidden border border-orange-500/20 shadow-lg shadow-orange-500/5">
                   <div className="flex items-center gap-3 p-3 bg-white/5">
                     {spotlight.photo_url && (
-                      <Image src={spotlight.photo_url} alt="" width={48} height={48} className="w-12 h-12 rounded-full object-cover border-2 border-orange-400/50" />
+                      <RemoteImage src={spotlight.photo_url} alt="" width={48} height={48} className="w-12 h-12 rounded-full object-cover border-2 border-orange-400/50" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate">{spotlight.first_name} {spotlight.last_name}</p>
@@ -1213,7 +1214,7 @@ function HomeContent() {
                     >
                       <div className="relative aspect-[3/4] w-full">
                         {match.matchedWith.photo_url ? (
-                          <Image src={match.matchedWith.photo_url} alt="" fill className="object-cover object-top" sizes="(max-width: 640px) 50vw, 33vw" />
+                          <RemoteImage src={match.matchedWith.photo_url} alt="" fill className="object-cover object-top" sizes="(max-width: 640px) 50vw, 33vw" />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center">
                             <i className="fa-solid fa-user text-3xl text-white/40" />

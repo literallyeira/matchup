@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import type { Application } from '@/lib/supabase';
 import { getInlineBadges } from '@/lib/badges-client';
+import { RemoteImage } from '@/components/RemoteImage';
 
 type HighlightProfile = Application & {
   liked_count?: number;
@@ -27,6 +27,7 @@ function formatLastActive(iso: string | null | undefined): string | null {
 export function WeeklyHighlights({ maxItems = 6 }: { maxItems?: number }) {
   const [profiles, setProfiles] = useState<HighlightProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +36,7 @@ export function WeeklyHighlights({ maxItems = 6 }: { maxItems?: number }) {
       .then((res) => (res.ok ? res.json() : { profiles: [] }))
       .then((data) => {
         if (!cancelled) {
+          setEnabled(data.enabled === true);
           setProfiles(Array.isArray(data.profiles) ? data.profiles.slice(0, maxItems) : []);
         }
       })
@@ -50,7 +52,7 @@ export function WeeklyHighlights({ maxItems = 6 }: { maxItems?: number }) {
     };
   }, [maxItems]);
 
-  if (!isLoading && profiles.length === 0) return null;
+  if (!isLoading && (!enabled || profiles.length === 0)) return null;
 
   return (
     <section className="w-full mb-6 animate-fade-in">
@@ -83,7 +85,7 @@ export function WeeklyHighlights({ maxItems = 6 }: { maxItems?: number }) {
                 >
                   <div className="relative aspect-[4/5] bg-[var(--matchup-bg-input)]">
                     {profile.photo_url ? (
-                      <Image
+                      <RemoteImage
                         src={profile.photo_url}
                         alt={`${profile.first_name} ${profile.last_name}`}
                         fill

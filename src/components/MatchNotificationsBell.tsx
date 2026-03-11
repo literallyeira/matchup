@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { RemoteImage } from '@/components/RemoteImage';
 
 const SEEN_STORAGE_KEY = 'matchup_seen_match_ids';
 
@@ -141,7 +141,7 @@ export function MatchNotificationsBell() {
                   {matches.slice(0, 15).map((m) => (
                     <li key={m.id} className="px-3 py-2 flex items-center gap-3 hover:bg-white/5">
                       {m.matchedWith.photo_url ? (
-                        <Image src={m.matchedWith.photo_url} alt="" width={40} height={40} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                        <RemoteImage src={m.matchedWith.photo_url} alt="" width={40} height={40} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-[var(--matchup-primary)]/20 flex items-center justify-center flex-shrink-0">
                           <i className="fa-solid fa-user text-[var(--matchup-primary)]/70" />

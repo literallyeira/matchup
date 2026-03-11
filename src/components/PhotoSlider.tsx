@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import Image from 'next/image';
+import { RemoteImage } from '@/components/RemoteImage';
 
 const SWIPE_THRESHOLD = 50;
 
@@ -81,7 +81,7 @@ export function PhotoSlider({ photos, value, onChange, children, aspectClass = '
           className="w-full h-full flex transition-transform duration-200 ease-out"
           style={{ transform: `translateX(${dragOffset}px)` }}
         >
-          <Image
+          <RemoteImage
             src={photos[safeIdx]}
             alt=""
             fill

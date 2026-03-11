@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { getPreferredImageUrl } from '@/lib/images';
 import {
     getOrCreateRefCode,
     getReferrerByCode,
@@ -52,6 +53,14 @@ export async function POST(request: NextRequest) {
         }
 
         const gtawUserId = session.user.gtawId;
+        const normalizedPhotoUrl = getPreferredImageUrl(photoUrl);
+        const normalizedExtraPhotos = Array.isArray(extraPhotos)
+            ? extraPhotos
+                .filter((u: string) => u?.trim())
+                .slice(0, 4)
+                .map((u: string) => getPreferredImageUrl(u))
+                .filter(Boolean)
+            : [];
 
         // Application'ı olmayan karakter mi? (bu karakterin hiç profil kaydı yok)
         const wasNewCharacter = !(await hasPriorApplicationForCharacter(gtawUserId, parseInt(String(characterId))));
@@ -68,11 +77,11 @@ export async function POST(request: NextRequest) {
                 phone: phone?.trim() || null,
                 facebrowser,
                 description,
-                photo_url: photoUrl,
+                photo_url: normalizedPhotoUrl,
                 gtaw_user_id: gtawUserId,
                 character_id: characterId,
                 character_name: characterName,
-                extra_photos: Array.isArray(extraPhotos) ? extraPhotos.filter((u: string) => u?.trim()).slice(0, 4) : [],
+                extra_photos: normalizedExtraPhotos,
                 prompts: typeof prompts === 'object' && prompts ? Object.fromEntries(Object.entries(prompts).filter(([, v]) => (v as string)?.trim())) : {},
                 looking_for: lookingFor === 'friends' || lookingFor === 'dating' ? lookingFor : null,
                 updated_at: new Date().toISOString(),

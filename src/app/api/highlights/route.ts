@@ -30,6 +30,17 @@ function getScore(app: Application, likedCount: number): number {
 // GET - Haftanın öne çıkan profilleri
 export async function GET() {
   try {
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'weekly_highlights_enabled')
+      .maybeSingle();
+
+    const enabled = settings?.value === 'true';
+    if (!enabled) {
+      return NextResponse.json({ enabled: false, profiles: [] });
+    }
+
     const now = Date.now();
     const weekAgoIso = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -65,7 +76,7 @@ export async function GET() {
     }
 
     if (!candidates?.length) {
-      return NextResponse.json({ profiles: [] });
+      return NextResponse.json({ enabled: true, profiles: [] });
     }
 
     const candidateIds = candidates.map((app: Application) => app.id);
@@ -101,12 +112,12 @@ export async function GET() {
       .slice(0, 8);
 
     return NextResponse.json(
-      { profiles },
+      { enabled: true, profiles },
       { headers: { 'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=1800' } }
     );
   } catch (error) {
     console.error('Highlights error:', error);
-    return NextResponse.json({ profiles: [] }, { status: 200 });
+    return NextResponse.json({ enabled: false, profiles: [] }, { status: 200 });
   }
 }
 

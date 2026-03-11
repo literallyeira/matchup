@@ -85,6 +85,7 @@ export default function AdminPage() {
 
     // Ads toggle state
     const [adsEnabled, setAdsEnabled] = useState(false);
+    const [weeklyHighlightsEnabled, setWeeklyHighlightsEnabled] = useState(false);
 
     // Load test mode from localStorage
     useEffect(() => {
@@ -116,6 +117,33 @@ export default function AdminPage() {
                 body: JSON.stringify({ enabled: newVal }),
             });
             if (res.ok) setAdsEnabled(newVal);
+        } catch { /* ignore */ }
+    };
+
+    const fetchWeeklyHighlightsEnabled = async () => {
+        try {
+            const res = await fetch('/api/admin/highlights-toggle', {
+                headers: { Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setWeeklyHighlightsEnabled(data.enabled);
+            }
+        } catch { /* ignore */ }
+    };
+
+    const toggleWeeklyHighlightsEnabled = async () => {
+        const newVal = !weeklyHighlightsEnabled;
+        try {
+            const res = await fetch('/api/admin/highlights-toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${password || localStorage.getItem('adminPassword') || ''}`,
+                },
+                body: JSON.stringify({ enabled: newVal }),
+            });
+            if (res.ok) setWeeklyHighlightsEnabled(newVal);
         } catch { /* ignore */ }
     };
 
@@ -161,6 +189,7 @@ export default function AdminPage() {
                 } catch { /* ignore */ }
                 fetchMatches(password);
                 fetchAdsEnabled();
+                fetchWeeklyHighlightsEnabled();
             } else {
                 const errData = await response.json().catch(() => ({}));
                 setError(errData.error || 'Yanlış şifre!');
@@ -686,6 +715,7 @@ export default function AdminPage() {
             fetchMatches(savedPassword);
             fetchAllMatchesForApps(savedPassword);
             fetchAdsEnabled();
+            fetchWeeklyHighlightsEnabled();
             fetchLinkStats();
         } else if (savedPassword) {
             setPassword(savedPassword);
@@ -879,6 +909,16 @@ export default function AdminPage() {
                             <i className="fa-solid fa-rectangle-ad"></i>
                             {adsEnabled ? 'Reklamlar: Açık' : 'Reklamlar: Kapalı'}
                         </button>
+                        <button
+                            onClick={toggleWeeklyHighlightsEnabled}
+                            className={`px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2 ${weeklyHighlightsEnabled
+                                ? 'bg-amber-500 text-black'
+                                : 'bg-[var(--matchup-bg-card)] hover:bg-[var(--matchup-bg-input)]'
+                                }`}
+                        >
+                            <i className="fa-solid fa-trophy"></i>
+                            {weeklyHighlightsEnabled ? 'Öne Çıkanlar: Açık' : 'Öne Çıkanlar: Kapalı'}
+                        </button>
                         {/* Test Mode Toggle */}
                         <button
                             onClick={toggleTestMode}
@@ -898,7 +938,7 @@ export default function AdminPage() {
                             Muhasebe
                         </Link>
                         <button
-                            onClick={() => { fetchApplications(); fetchMatches(); fetchAllMatchesForApps(); fetchLinkStats(); fetchReferralStats(); if (activeTab === 'payments') { fetchPaymentStats(); } if (activeTab === 'stats') { fetchActiveStats(); } }}
+                            onClick={() => { fetchApplications(); fetchMatches(); fetchAllMatchesForApps(); fetchLinkStats(); fetchReferralStats(); fetchAdsEnabled(); fetchWeeklyHighlightsEnabled(); if (activeTab === 'payments') { fetchPaymentStats(); } if (activeTab === 'stats') { fetchActiveStats(); } }}
                             className="btn-secondary"
                         >
                             <i className="fa-solid fa-rotate-right mr-2"></i>Yenile
